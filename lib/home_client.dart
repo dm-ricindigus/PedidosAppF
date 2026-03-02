@@ -19,6 +19,17 @@ class _HomeClientPageState extends State<HomeClientPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  static const List<(int?, String)> _filtros = [
+    (null, 'Todos'),
+    (1, 'Ingresado'),
+    (2, 'Impresión y Transferencia'),
+    (3, 'Confección'),
+    (4, 'Acabados'),
+    (5, 'Empacado'),
+  ];
+
+  int? _filtroEstado = null;
+
   String _obtenerEstadoTexto(int estado) {
     switch (estado) {
       case 1:
@@ -473,99 +484,160 @@ class _HomeClientPageState extends State<HomeClientPage> {
         label: const Text('Nuevo pedido'),
       ),
       body: SafeArea(
-        child: StreamBuilder<QuerySnapshot>(
-          stream: _auth.currentUser != null
-              ? _firestore
-                    .collection('orders')
-                    .where('clientId', isEqualTo: _auth.currentUser!.uid)
-                    .snapshots()
-              : null,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Center(
-                child: Text('Error al cargar pedidos: ${snapshot.error}'),
-              );
-            }
-
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              final colorScheme = Theme.of(context).colorScheme;
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.inbox_outlined,
-                      size: 64,
-                      color: colorScheme.onSurfaceVariant,
+        child: Column(
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: _filtros.map((filtro) {
+                  final (codigo, label) = filtro;
+                  final seleccionado = _filtroEstado == codigo;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(label),
+                      selected: seleccionado,
+                      onSelected: (selected) {
+                        setState(() {
+                          _filtroEstado = selected ? codigo : null;
+                        });
+                      },
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No tienes pedidos aún',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Crea tu primer pedido',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
+                  );
+                }).toList(),
+              ),
+            ),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: _auth.currentUser != null
+                    ? _firestore
+                          .collection('orders')
+                          .where('clientId', isEqualTo: _auth.currentUser!.uid)
+                          .snapshots()
+                    : null,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-            // Ordenar pedidos por fecha de creación (más recientes primero)
-            final pedidos = snapshot.data!.docs.toList()
-              ..sort((a, b) {
-                final aData = a.data() as Map<String, dynamic>;
-                final bData = b.data() as Map<String, dynamic>;
-                final aCreatedAt = aData['createdAt'] as Timestamp?;
-                final bCreatedAt = bData['createdAt'] as Timestamp?;
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Text('Error al cargar pedidos: ${snapshot.error}'),
+                    );
+                  }
 
-                if (aCreatedAt == null && bCreatedAt == null) return 0;
-                if (aCreatedAt == null) return 1;
-                if (bCreatedAt == null) return -1;
-
-                return bCreatedAt.compareTo(aCreatedAt); // Descendente
-              });
-
-            return ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: pedidos.length,
-              itemBuilder: (context, index) {
-                final pedidoDoc = pedidos[index];
-                final pedidoData = pedidoDoc.data() as Map<String, dynamic>;
-
-                final orderCode = pedidoData['orderCode'] as String? ?? '';
-                final title = pedidoData['title'] as String? ?? 'Sin título';
-                final state = pedidoData['state'] as int? ?? 0;
-
-                return OrderItem(
-                  numeroPedido: 'Pedido Nº $orderCode',
-                  titulo: title,
-                  estado: _obtenerEstadoTexto(state),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => OrderDetailPage(
-                          numeroPedido: 'Pedido Nº $orderCode',
-                          titulo: title,
-                        ),
+                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    final colorScheme = Theme.of(context).colorScheme;
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.inbox_outlined,
+                            size: 64,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No tienes pedidos aún',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Crea tu primer pedido',
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: colorScheme.onSurfaceVariant),
+                          ),
+                        ],
                       ),
                     );
-                  },
-                );
-              },
-            );
-          },
+                  }
+
+                  // Ordenar pedidos por fecha de creación (más recientes primero)
+                  var pedidos = snapshot.data!.docs.toList()
+                    ..sort((a, b) {
+                      final aData = a.data() as Map<String, dynamic>;
+                      final bData = b.data() as Map<String, dynamic>;
+                      final aCreatedAt = aData['createdAt'] as Timestamp?;
+                      final bCreatedAt = bData['createdAt'] as Timestamp?;
+
+                      if (aCreatedAt == null && bCreatedAt == null) return 0;
+                      if (aCreatedAt == null) return 1;
+                      if (bCreatedAt == null) return -1;
+
+                      return bCreatedAt.compareTo(aCreatedAt); // Descendente
+                    });
+
+                  if (_filtroEstado != null) {
+                    pedidos = pedidos
+                        .where(
+                          (doc) =>
+                              (doc.data() as Map<String, dynamic>)['state'] ==
+                              _filtroEstado,
+                        )
+                        .toList();
+                  }
+
+                  if (pedidos.isEmpty) {
+                    final colorScheme = Theme.of(context).colorScheme;
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.filter_list_off,
+                            size: 64,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No hay pedidos con este filtro',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: pedidos.length,
+                    itemBuilder: (context, index) {
+                      final pedidoDoc = pedidos[index];
+                      final pedidoData =
+                          pedidoDoc.data() as Map<String, dynamic>;
+
+                      final orderCode =
+                          pedidoData['orderCode'] as String? ?? '';
+                      final title =
+                          pedidoData['title'] as String? ?? 'Sin título';
+                      final state = pedidoData['state'] as int? ?? 0;
+
+                      return OrderItem(
+                        numeroPedido: 'Pedido Nº $orderCode',
+                        titulo: title,
+                        estado: _obtenerEstadoTexto(state),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => OrderDetailPage(
+                                numeroPedido: 'Pedido Nº $orderCode',
+                                titulo: title,
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -8,8 +8,24 @@ import 'package:pedidosapp/login.dart';
 import 'package:pedidosapp/order_detail_admin.dart';
 import 'dart:developer' as developer;
 
-class HomeAdminPage extends StatelessWidget {
+class HomeAdminPage extends StatefulWidget {
   const HomeAdminPage({super.key});
+
+  @override
+  State<HomeAdminPage> createState() => _HomeAdminPageState();
+}
+
+class _HomeAdminPageState extends State<HomeAdminPage> {
+  static const List<(int?, String)> _filtros = [
+    (null, 'Todos'),
+    (1, 'Ingresado'),
+    (2, 'Impresión y Transferencia'),
+    (3, 'Confección'),
+    (4, 'Acabados'),
+    (5, 'Empacado'),
+  ];
+
+  int? _filtroEstado = null;
 
   String _estadoDesdeCodigo(int? state) {
     switch (state) {
@@ -49,7 +65,11 @@ class HomeAdminPage extends StatelessWidget {
           children: [
             Text(
               'Cerrar sesión',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             SizedBox(height: 16),
             Text(
@@ -131,7 +151,11 @@ class HomeAdminPage extends StatelessWidget {
               Center(
                 child: Text(
                   'Se creó el código de pedido:',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -215,7 +239,11 @@ class HomeAdminPage extends StatelessWidget {
               children: [
                 Text(
                   'Indica el correo del cliente',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
                 SizedBox(height: 20),
                 TextField(
@@ -444,9 +472,40 @@ class HomeAdminPage extends StatelessWidget {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          _abrirModalNuevoPedido(context);
+        },
+        backgroundColor: accentColor,
+        foregroundColor: onAccentColor,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Crear ID de Pedido'),
+      ),
       body: SafeArea(
         child: Column(
           children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: _filtros.map((filtro) {
+                  final (codigo, label) = filtro;
+                  final seleccionado = _filtroEstado == codigo;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: FilterChip(
+                      label: Text(label),
+                      selected: seleccionado,
+                      onSelected: (selected) {
+                        setState(() {
+                          _filtroEstado = selected ? codigo : null;
+                        });
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: _firestore
@@ -490,10 +549,42 @@ class HomeAdminPage extends StatelessWidget {
                     );
                   }
 
-                  final pedidos = snapshot.data!.docs;
+                  var pedidos = snapshot.data!.docs;
+
+                  if (_filtroEstado != null) {
+                    pedidos = pedidos
+                        .where(
+                          (doc) =>
+                              (doc.data() as Map<String, dynamic>)['state'] ==
+                              _filtroEstado,
+                        )
+                        .toList();
+                  }
+
+                  if (pedidos.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.filter_list_off,
+                            size: 64,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No hay pedidos con este filtro',
+                            style: textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
 
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.only(bottom: 88),
                     itemCount: pedidos.length,
                     itemBuilder: (context, index) {
                       final data =
@@ -525,23 +616,6 @@ class HomeAdminPage extends StatelessWidget {
                     },
                   );
                 },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    _abrirModalNuevoPedido(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: Text('Crear ID de Pedido'),
-                ),
               ),
             ),
           ],
