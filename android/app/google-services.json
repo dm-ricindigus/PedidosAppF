@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "60224711452",
+    "project_id": "pedidosapp-5eb2c",
+    "storage_bucket": "pedidosapp-5eb2c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:60224711452:android:d7ec17b16b6cedaa7b28d9",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBO1bu-bBnqzPy-pmdcQJhxeQ2K5Iv_ubY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:60224711452:android:357a53806ada26f37b28d9",
+        "android_client_info": {
+          "package_name": "com.ricindigus.tsm.pedidosapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBO1bu-bBnqzPy-pmdcQJhxeQ2K5Iv_ubY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

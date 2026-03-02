@@ -1,0 +1,43 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Archivos adjuntos del flujo de pedidos:
+    // orders/{orderId}/messages/{messageId}/{fileName}
+    match /orders/{orderId}/messages/{messageId}/{fileName} {
+      // Lectura solo para dueño del archivo (metadata uploadedBy) o admin.
+      allow read: if isSignedIn() &&
+        (
+          resource.metadata.uploadedBy == request.auth.uid ||
+          isAdmin()
+        );
+
+      // Escritura autenticada, con limite de 6MB y contentType controlado.
+      // Se usa octet-stream desde Flutter.
+      allow create, update: if isSignedIn() &&
+        request.resource != null &&
+        request.resource.size <= 6 * 1024 * 1024 &&
+        request.resource.contentType == 'application/octet-stream';
+
+      // Permitir borrar solo al dueño del archivo o admin.
+      allow delete: if isSignedIn() &&
+        (
+          resource.metadata.uploadedBy == request.auth.uid ||
+          isAdmin()
+        );
+    }
+
+    // Todo lo demas denegado
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

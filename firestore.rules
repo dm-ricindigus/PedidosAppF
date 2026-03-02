@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Reglas para usuarios
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // Reglas para códigos de pedido
+    match /orderCodes/{codeId} {
+      allow read: if isSignedIn();
+
+      // Solo Cloud Functions pueden crear códigos
+      allow create: if false;
+
+      // El cliente solo puede marcarlo como usado para su correo.
+      allow update: if isSignedIn() &&
+        resource.data.clientEmail == request.auth.token.email &&
+        request.resource.data.clientEmail == resource.data.clientEmail &&
+        request.resource.data.diff(resource.data).changedKeys().hasOnly(['used', 'usedAt', 'usedBy']) &&
+        request.resource.data.used == true &&
+        request.resource.data.usedBy == request.auth.uid;
+
+      // No permitir eliminar códigos
+      allow delete: if false;
+    }
+
+    // Reglas para pedidos
+    match /orders/{orderId} {
+      allow read: if isSignedIn() &&
+        (resource.data.clientId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn() &&
+        request.resource.data.clientId == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+        (resource.data.clientId == request.auth.uid || isAdmin());
+
+      allow delete: if isAdmin();
+    }
+
+    // Reglas para mensajes
+    match /messages/{messageId} {
+      allow create: if isSignedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        (
+          get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.clientId == request.auth.uid ||
+          isAdmin()
+        );
+
+      allow read: if isSignedIn() && (
+        get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data.clientId == request.auth.uid ||
+        isAdmin()
+      );
+
+      allow update: if isSignedIn() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow delete: if isAdmin();
+    }
+
+    // Por defecto, denegar todo lo demás
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
