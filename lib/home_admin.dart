@@ -516,6 +516,7 @@ class HomeAdminPage extends StatelessWidget {
                               builder: (context) => OrderDetailAdminPage(
                                 numeroPedido: numeroPedido,
                                 titulo: titulo,
+                                estadoInicial: _estadoDesdeCodigo(state),
                               ),
                             ),
                           );

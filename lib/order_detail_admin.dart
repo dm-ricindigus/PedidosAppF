@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:pedidosapp/message_detail_admin.dart';
+import 'package:pedidosapp/widgets/order_item.dart';
 
 class HistorialItem extends StatelessWidget {
   final String messageId;
@@ -20,6 +22,8 @@ class HistorialItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return InkWell(
       onTap: () {
         Navigator.push(
@@ -32,48 +36,61 @@ class HistorialItem extends StatelessWidget {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              fecha,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              descripcion,
-              style: TextStyle(fontSize: 14, color: Colors.grey[800]),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            Row(
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Card(
+          elevation: 0,
+          margin: EdgeInsets.zero,
+          color: Theme.of(context).scaffoldBackgroundColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.insert_drive_file,
-                  size: 16,
-                  color: Colors.grey[600],
-                ),
-                const SizedBox(width: 6),
                 Text(
-                  '$cantidadArchivos archivos',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  fecha,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  descripcion,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      cantidadArchivos == 0
+                          ? Symbols.attach_file_off
+                          : Symbols.attach_file,
+                      size: 16,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      cantidadArchivos == 0
+                          ? 'Sin archivos adjuntos'
+                          : cantidadArchivos == 1
+                          ? '1 archivo adjunto'
+                          : '$cantidadArchivos archivos adjuntos',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -83,11 +100,13 @@ class HistorialItem extends StatelessWidget {
 class OrderDetailAdminPage extends StatefulWidget {
   final String numeroPedido;
   final String titulo;
+  final String? estadoInicial;
 
   const OrderDetailAdminPage({
     super.key,
     required this.numeroPedido,
     required this.titulo,
+    this.estadoInicial,
   });
 
   @override
@@ -96,9 +115,16 @@ class OrderDetailAdminPage extends StatefulWidget {
 
 class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  String _estadoActual = 'Ingresado';
+  late String _estadoActual;
   String? _orderId;
   bool _cargandoPedido = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _estadoActual = widget.estadoInicial ?? _estados.first;
+    _cargarPedido();
+  }
 
   final List<String> _estados = [
     'Ingresado',
@@ -107,12 +133,6 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
     'Acabados',
     'Empacado',
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    _cargarPedido();
-  }
 
   String _extraerOrderCode(String numeroPedido) {
     return numeroPedido.replaceAll('Pedido Nº', '').trim();
@@ -316,8 +336,16 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
             ),
             Divider(),
             ..._estados.map((estado) {
+              final (_, colorFg, icono) = obtenerEstiloEstado(
+                estado,
+                Theme.of(context).colorScheme,
+              );
               return ListTile(
-                title: Text(estado),
+                leading: Icon(icono, size: 22, color: colorFg),
+                title: Text(
+                  estado,
+                  style: TextStyle(color: colorFg, fontWeight: FontWeight.w600),
+                ),
                 trailing: _estadoActual == estado
                     ? Icon(
                         Icons.check,
@@ -342,35 +370,88 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+    final Color accentColor = theme.colorScheme.primary;
+    const Color onAccentColor = Colors.white;
+    final (chipBg, chipFg, chipIcon) = obtenerEstiloEstado(
+      _estadoActual,
+      theme.colorScheme,
+    );
+
     return Scaffold(
+      backgroundColor: theme.colorScheme.surfaceContainerLow,
       appBar: AppBar(
+        scrolledUnderElevation: 0,
+        elevation: 0,
+        centerTitle: false,
+        backgroundColor: accentColor,
+        foregroundColor: onAccentColor,
         title: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(widget.numeroPedido),
+            Text(
+              widget.numeroPedido,
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: onAccentColor,
+              ),
+            ),
             Text(
               widget.titulo,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: textTheme.bodyMedium?.copyWith(color: onAccentColor),
             ),
           ],
         ),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: InkWell(
+              onTap: _mostrarBottomSheetEstados,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: chipBg,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  children: [
+                    Icon(chipIcon, size: 20, color: chipFg),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _estadoActual,
+                        style: textTheme.titleSmall?.copyWith(
+                          color: chipFg,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Icon(Icons.arrow_drop_down, color: chipFg),
+                  ],
+                ),
+              ),
+            ),
+          ),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_cargandoPedido)
-                    const Center(child: CircularProgressIndicator())
-                  else if (_orderId == null)
-                    const Center(child: Text('No se encontro el pedido'))
-                  else
-                    StreamBuilder<QuerySnapshot>(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _cargandoPedido
+                  ? const Center(child: CircularProgressIndicator())
+                  : _orderId == null
+                  ? const Center(child: Text('No se encontro el pedido'))
+                  : StreamBuilder<QuerySnapshot>(
                       stream: _firestore
                           .collection('messages')
                           .where('orderId', isEqualTo: _orderId)
@@ -393,17 +474,24 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
                         }
 
                         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                          return const Center(
-                            child: Text('No hay mensajes para este pedido'),
+                          return Center(
+                            child: Text(
+                              'No hay mensajes aún',
+                              style: textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
                           );
                         }
 
                         final mensajes = snapshot.data!.docs;
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: mensajes.map((doc) {
-                            final data = doc.data() as Map<String, dynamic>;
+                        return ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          itemCount: mensajes.length,
+                          itemBuilder: (context, index) {
+                            final data =
+                                mensajes[index].data() as Map<String, dynamic>;
                             final fecha = _formatearFecha(
                               data['createdAt'] as Timestamp?,
                             );
@@ -413,46 +501,16 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
                                 (data['attachments'] as List<dynamic>?) ?? [];
 
                             return HistorialItem(
-                              messageId: doc.id,
+                              messageId: mensajes[index].id,
                               numeroPedido: widget.numeroPedido,
                               fecha: fecha,
                               descripcion: descripcion,
                               cantidadArchivos: attachments.length,
                             );
-                          }).toList(),
+                          },
                         );
                       },
                     ),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: InkWell(
-              onTap: _mostrarBottomSheetEstados,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey.shade300),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Estado: $_estadoActual',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Icon(Icons.arrow_drop_down),
-                  ],
-                ),
-              ),
             ),
           ),
         ],

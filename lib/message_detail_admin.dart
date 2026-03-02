@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:material_symbols_icons/symbols.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:file_saver/file_saver.dart';
@@ -69,7 +70,10 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
   @override
   void initState() {
     super.initState();
-    _messageStream = _firestore.collection('messages').doc(widget.messageId).snapshots();
+    _messageStream = _firestore
+        .collection('messages')
+        .doc(widget.messageId)
+        .snapshots();
   }
 
   String _formatearFecha(Timestamp? timestamp) {
@@ -205,7 +209,8 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
       final actualPostDescarga = _descargas[clave];
       if (actualPostDescarga != null) {
         final elapsed =
-            DateTime.now().millisecondsSinceEpoch - actualPostDescarga.startedAtMs;
+            DateTime.now().millisecondsSinceEpoch -
+            actualPostDescarga.startedAtMs;
         final waitMs = _minMsIndicadorDescarga - elapsed;
         if (waitMs > 0) {
           await Future.delayed(Duration(milliseconds: waitMs));
@@ -547,9 +552,7 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
     super.dispose();
   }
 
-  Widget _buildEstadoDescargaVisual({
-    required String clave,
-  }) {
+  Widget _buildEstadoDescargaVisual({required String clave}) {
     final estado = _descargas[clave] ?? const DescargaArchivoEstado();
 
     switch (estado.estado) {
@@ -580,17 +583,20 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
       case EstadoDescarga.pausado:
         return const SizedBox(width: 20, height: 20);
       case EstadoDescarga.completado:
-        return const Icon(
-          Icons.check_circle,
-          color: Colors.green,
-          size: 20,
-        );
+        return const Icon(Icons.check_circle, color: Colors.green, size: 20);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+    final colorScheme = theme.colorScheme;
+    final Color accentColor = colorScheme.primary;
+    const Color onAccentColor = Colors.white;
+
     return Scaffold(
+      backgroundColor: colorScheme.surfaceContainerLow,
       body: StreamBuilder<DocumentSnapshot>(
         stream: _messageStream,
         builder: (context, snapshot) {
@@ -625,22 +631,34 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
               .toList();
 
           return Scaffold(
+            backgroundColor: colorScheme.surfaceContainerLow,
             appBar: AppBar(
+              scrolledUnderElevation: 0,
+              elevation: 0,
+              centerTitle: false,
+              backgroundColor: accentColor,
+              foregroundColor: onAccentColor,
+              titleSpacing: 16,
               title: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(widget.numeroPedido),
+                  Text(
+                    widget.numeroPedido,
+                    style: textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: onAccentColor,
+                    ),
+                  ),
                   Text(
                     _formatearFecha(createdAt),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
-                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(color: onAccentColor),
                   ),
                 ],
               ),
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Colors.white,
             ),
             body: Padding(
               padding: const EdgeInsets.all(24),
@@ -649,24 +667,34 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
                 children: [
                   Text(
                     'Mensaje recibido',
-                    style: TextStyle(
-                      fontSize: 16,
+                    style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatearFecha(createdAt),
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    height: 192,
+                    width: double.infinity,
+                    height: 168,
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
+                      color: colorScheme.surfaceContainerLowest,
+                      border: Border.all(color: colorScheme.outlineVariant),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     padding: const EdgeInsets.all(16),
                     child: SingleChildScrollView(
                       child: Text(
                         descripcion,
-                        style: TextStyle(fontSize: 16, color: Colors.grey[800]),
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface,
+                        ),
                         softWrap: true,
                         textAlign: TextAlign.justify,
                       ),
@@ -677,10 +705,9 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
                     archivos.isEmpty
                         ? 'Este mensaje no tiene archivos adjuntos'
                         : 'Archivos recibidos',
-                    style: TextStyle(
-                      fontSize: 16,
+                    style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                      color: Colors.grey[700],
+                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -691,15 +718,19 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
                             itemCount: archivos.length,
                             itemBuilder: (context, index) {
                               final nombreArchivo = archivos[index]['name']!;
-                              final storagePath = archivos[index]['storagePath'];
-                              final clave = _claveArchivo(archivos[index], index);
+                              final storagePath =
+                                  archivos[index]['storagePath'];
+                              final clave = _claveArchivo(
+                                archivos[index],
+                                index,
+                              );
                               final estadoDescarga = _descargas[clave];
                               final isFirst = index == 0;
                               return Column(
                                 children: [
                                   if (!isFirst)
                                     Divider(
-                                      color: Colors.grey.shade300,
+                                      color: colorScheme.outlineVariant,
                                       height: 1,
                                       thickness: 1,
                                     ),
@@ -720,39 +751,59 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
                                         child: Row(
                                           children: [
                                             Icon(
-                                              Icons.insert_drive_file,
+                                              Symbols.file_present,
                                               size: 20,
-                                              color: Colors.grey[600],
+                                              color:
+                                                  colorScheme.onSurfaceVariant,
                                             ),
                                             const SizedBox(width: 8),
                                             Expanded(
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    nombreArchivo,
-                                                    style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Colors.grey[800],
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    'Archivo${_separarNombreYExtension(nombreArchivo).extension}',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color: Colors.grey[600],
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ],
+                                              child: Builder(
+                                                builder: (context) {
+                                                  final partes =
+                                                      _separarNombreYExtension(
+                                                        nombreArchivo,
+                                                      );
+                                                  return Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                        partes.base,
+                                                        style: textTheme
+                                                            .bodyMedium
+                                                            ?.copyWith(
+                                                              color: colorScheme
+                                                                  .onSurface,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                      const SizedBox(height: 2),
+                                                      Text(
+                                                        partes.extension.isEmpty
+                                                            ? 'archivo'
+                                                            : 'archivo${partes.extension}',
+                                                        style: textTheme
+                                                            .labelSmall
+                                                            ?.copyWith(
+                                                              color: colorScheme
+                                                                  .onSurfaceVariant,
+                                                            ),
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
                                               ),
                                             ),
                                             SizedBox(
@@ -767,8 +818,8 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
                                                     child: Center(
                                                       child:
                                                           _buildEstadoDescargaVisual(
-                                                        clave: clave,
-                                                      ),
+                                                            clave: clave,
+                                                          ),
                                                     ),
                                                   ),
                                                   const SizedBox(width: 4),
@@ -776,7 +827,8 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
                                                     width: 30,
                                                     height: 30,
                                                     child:
-                                                        estadoDescarga?.estado ==
+                                                        estadoDescarga
+                                                                ?.estado ==
                                                             EstadoDescarga
                                                                 .completado
                                                         ? IconButton(
@@ -789,25 +841,29 @@ class _MessageDetailAdminPageState extends State<MessageDetailAdminPage> {
                                                                     nombreArchivo,
                                                               );
                                                             },
-                                                            padding: const EdgeInsets.all(2),
-                                                            constraints: const BoxConstraints(
-                                                              minWidth: 30,
-                                                              minHeight: 30,
-                                                            ),
+                                                            padding:
+                                                                const EdgeInsets.all(
+                                                                  2,
+                                                                ),
+                                                            constraints:
+                                                                const BoxConstraints(
+                                                                  minWidth: 30,
+                                                                  minHeight: 30,
+                                                                ),
                                                             icon: const Icon(
-                                                              Icons
-                                                                  .save_alt_outlined,
-                                                              size: 18,
+                                                              Symbols.archive,
+                                                              size: 24,
                                                             ),
                                                             tooltip:
                                                                 'Guardar en...',
                                                             color:
                                                                 Theme.of(
-                                                                  context,
-                                                                ).colorScheme.primary,
+                                                                      context,
+                                                                    )
+                                                                    .colorScheme
+                                                                    .primary,
                                                           )
-                                                        : const SizedBox
-                                                              .shrink(),
+                                                        : const SizedBox.shrink(),
                                                   ),
                                                 ],
                                               ),

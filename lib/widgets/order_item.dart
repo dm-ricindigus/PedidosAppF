@@ -1,5 +1,53 @@
 import 'package:flutter/material.dart';
 
+/// Retorna (colorFondo, colorTexto, icono) para el estado dado.
+(Color, Color, IconData) obtenerEstiloEstado(
+  String estado,
+  ColorScheme colorScheme,
+) {
+  final e = estado.toLowerCase();
+  if (e.contains('ingresado')) {
+    return (
+      const Color(0xFFDDEBFF),
+      const Color(0xFF1E4FA3),
+      Icons.edit_note_rounded,
+    );
+  }
+  if (e.contains('impresión') || e.contains('transferencia')) {
+    return (
+      const Color(0xFFE4E6EB),
+      const Color(0xFF2F3640),
+      Icons.print_rounded,
+    );
+  }
+  if (e.contains('confección')) {
+    return (
+      const Color(0xFFDDF5E3),
+      const Color(0xFF1E6B36),
+      Icons.design_services_rounded,
+    );
+  }
+  if (e.contains('acabados')) {
+    return (
+      const Color(0xFFF8DDE1),
+      const Color(0xFF8A1F2D),
+      Icons.check_circle_rounded,
+    );
+  }
+  if (e.contains('empacado')) {
+    return (
+      const Color(0xFFF2E3D5),
+      const Color(0xFF6B3F1E),
+      Icons.inventory_2_rounded,
+    );
+  }
+  return (
+    colorScheme.surfaceContainerHighest,
+    colorScheme.onSurfaceVariant,
+    Icons.help_outline_rounded,
+  );
+}
+
 class OrderItem extends StatelessWidget {
   final String numeroPedido;
   final String titulo;
@@ -15,48 +63,7 @@ class OrderItem extends StatelessWidget {
   });
 
   (Color, Color, IconData) _estadoVisual(ColorScheme colorScheme) {
-    // Acepta tanto formato cliente (Ingresado) como admin
-    final e = estado.toLowerCase();
-    if (e.contains('ingresado')) {
-      return (
-        const Color(0xFFDDEBFF),
-        const Color(0xFF1E4FA3),
-        Icons.edit_note_rounded,
-      );
-    }
-    if (e.contains('impresión') || e.contains('transferencia')) {
-      return (
-        const Color(0xFFE4E6EB),
-        const Color(0xFF2F3640),
-        Icons.print_rounded,
-      );
-    }
-    if (e.contains('confección')) {
-      return (
-        const Color(0xFFDDF5E3),
-        const Color(0xFF1E6B36),
-        Icons.design_services_rounded,
-      );
-    }
-    if (e.contains('acabados')) {
-      return (
-        const Color(0xFFF8DDE1),
-        const Color(0xFF8A1F2D),
-        Icons.check_circle_rounded,
-      );
-    }
-    if (e.contains('empacado')) {
-      return (
-        const Color(0xFFF2E3D5),
-        const Color(0xFF6B3F1E),
-        Icons.inventory_2_rounded,
-      );
-    }
-    return (
-      colorScheme.surfaceContainerHighest,
-      colorScheme.onSurfaceVariant,
-      Icons.help_outline_rounded,
-    );
+    return obtenerEstiloEstado(estado, colorScheme);
   }
 
   @override
