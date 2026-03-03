@@ -1,4 +1,5 @@
 const {onCall, HttpsError} = require('firebase-functions/v2/https');
+const {onDocumentUpdated} = require('firebase-functions/v2/firestore');
 const {setGlobalOptions} = require('firebase-functions/v2');
 const admin = require('firebase-admin');
 
@@ -117,3 +118,88 @@ exports.createOrderCode = onCall(async (request) => {
     );
   }
 });
+
+// Mapeo de códigos de estado a texto
+const ESTADOS = {
+  1: 'Ingresado',
+  2: 'Impresión y Transferencia',
+  3: 'Confección',
+  4: 'Acabados',
+  5: 'Empacado',
+};
+
+// Envía notificación al cliente cuando el admin cambia el estado del pedido
+exports.onOrderStateChange = onDocumentUpdated(
+  'orders/{orderId}',
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) {
+      console.log('[onOrderStateChange] No before/after data');
+      return;
+    }
+
+    const oldState = before.state;
+    const newState = after.state;
+    if (oldState === newState) {
+      console.log('[onOrderStateChange] State unchanged, skipping');
+      return;
+    }
+
+    const clientId = after.clientId;
+    const orderCode = after.orderCode || '';
+    const estadoTexto = ESTADOS[newState] || 'nuevo estado';
+
+    console.log('[onOrderStateChange] State changed:', {
+      orderCode,
+      clientId,
+      oldState,
+      newState,
+      estadoTexto,
+    });
+
+    if (!clientId) {
+      console.log('[onOrderStateChange] No clientId, skipping');
+      return;
+    }
+
+    const tokenDoc = await db.collection('fcmTokens').doc(clientId).get();
+    if (!tokenDoc.exists) {
+      console.log('[onOrderStateChange] No FCM token for clientId:', clientId);
+      return;
+    }
+
+    const token = tokenDoc.data()?.token;
+    if (!token) {
+      console.log('[onOrderStateChange] Empty token for clientId:', clientId);
+      return;
+    }
+
+    const message = {
+      notification: {
+        title: 'Actualización de pedido',
+        body: `Tu pedido ${orderCode} pasó a ${estadoTexto}`,
+      },
+      data: {
+        orderCode: String(orderCode),
+        state: String(newState),
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'pedidos_high',
+          priority: 'high',
+        },
+      },
+      token: token,
+    };
+
+    try {
+      await admin.messaging().send(message);
+      console.log('[onOrderStateChange] Notification sent to clientId:', clientId);
+    } catch (sendError) {
+      console.error('[onOrderStateChange] Error sending:', sendError.message);
+      throw sendError;
+    }
+  }
+);

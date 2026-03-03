@@ -584,7 +584,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                   }
 
                   return ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 88),
+                    padding: const EdgeInsets.only(bottom: 8),
                     itemCount: pedidos.length,
                     itemBuilder: (context, index) {
                       final data =

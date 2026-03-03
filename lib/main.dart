@@ -1,12 +1,35 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pedidosapp/firebase_options.dart';
+import 'package:pedidosapp/home_admin.dart';
+import 'package:pedidosapp/home_client.dart';
 import 'package:pedidosapp/login.dart';
+import 'package:pedidosapp/services/fcm_service.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  FcmService.setupForegroundHandler();
+  FcmService.setupNotificationTapHandler((orderCode) {
+    if (orderCode != null && navigatorKey.currentState != null) {
+      navigatorKey.currentState!.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const HomeClientPage()),
+        (route) => false,
+      );
+    }
+  });
   runApp(const PedidosApp());
 }
 
@@ -18,6 +41,7 @@ class PedidosApp extends StatelessWidget {
     const seed = Color(0xFF2E008B); // PMS 2735 (aprox. digital)
 
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Pedidos App',
       theme: ThemeData(
         useMaterial3: true,
@@ -48,9 +72,33 @@ class _SplashPageState extends State<SplashPage> {
 
   Future<void> _goToLogin() async {
     await Future<void>.delayed(const Duration(milliseconds: 1400));
-    if (!mounted) {
-      return;
+    if (!mounted) return;
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      try {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final role = userDoc.data()?['role'] as String? ?? 'client';
+        if (!mounted) return;
+        if (role == 'admin') {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeAdminPage()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const HomeClientPage()),
+          );
+        }
+        return;
+      } catch (_) {
+        // Si falla al obtener rol, ir a login
+      }
     }
+
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => const LoginPage(title: 'Mi primera aplicacion'),

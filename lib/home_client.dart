@@ -6,6 +6,7 @@ import 'package:pedidosapp/order_detail_client.dart';
 import 'package:pedidosapp/new_order_client.dart';
 import 'package:pedidosapp/login.dart';
 import 'package:pedidosapp/widgets/order_item.dart';
+import 'package:pedidosapp/services/fcm_service.dart';
 import 'dart:developer' as developer;
 
 class HomeClientPage extends StatefulWidget {
@@ -15,7 +16,8 @@ class HomeClientPage extends StatefulWidget {
   State<HomeClientPage> createState() => _HomeClientPageState();
 }
 
-class _HomeClientPageState extends State<HomeClientPage> {
+class _HomeClientPageState extends State<HomeClientPage>
+    with WidgetsBindingObserver {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -29,6 +31,33 @@ class _HomeClientPageState extends State<HomeClientPage> {
   ];
 
   int? _filtroEstado = null;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshFcmToken();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshFcmToken();
+    }
+  }
+
+  void _refreshFcmToken() {
+    final uid = _auth.currentUser?.uid;
+    if (uid != null) {
+      FcmService.initAndSaveToken(uid);
+    }
+  }
 
   String _obtenerEstadoTexto(int estado) {
     switch (estado) {
@@ -91,6 +120,10 @@ class _HomeClientPageState extends State<HomeClientPage> {
                   onPressed: () async {
                     Navigator.pop(context);
                     try {
+                      final uid = _auth.currentUser?.uid;
+                      if (uid != null) {
+                        await FcmService.removeToken(uid);
+                      }
                       await _auth.signOut();
                       if (mounted) {
                         Navigator.pushAndRemoveUntil(

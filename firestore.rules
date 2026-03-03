@@ -73,6 +73,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Tokens FCM para notificaciones push (el cliente guarda su token)
+    match /fcmTokens/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
     // Por defecto, denegar todo lo demás
     match /{document=**} {
       allow read, write: if false;
