@@ -21,8 +21,9 @@ class _HomeClientPageState extends State<HomeClientPage>
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  static const List<(int?, String)> _filtros = [
-    (null, 'Todos'),
+  /// 0 = Todos, 1-5 = estados específicos
+  static const List<(int, String)> _filtros = [
+    (0, 'Todos'),
     (1, 'Ingresado'),
     (2, 'Impresión y Transferencia'),
     (3, 'Confección'),
@@ -30,7 +31,14 @@ class _HomeClientPageState extends State<HomeClientPage>
     (5, 'Empacado'),
   ];
 
-  int? _filtroEstado = null;
+  static const List<(String, String)> _ordenes = [
+    ('fecha_desc', 'Más reciente'),
+    ('fecha_asc', 'Más antiguo'),
+    ('estado', 'Por estado'),
+  ];
+
+  int _filtroEstado = 0;
+  String _ordenTipo = 'fecha_desc';
 
   @override
   void initState() {
@@ -57,6 +65,54 @@ class _HomeClientPageState extends State<HomeClientPage>
     if (uid != null) {
       FcmService.initAndSaveToken(uid);
     }
+  }
+
+  String _obtenerFiltroLabel() {
+    return _filtros
+        .firstWhere((f) => f.$1 == _filtroEstado, orElse: () => _filtros.first)
+        .$2;
+  }
+
+  String _obtenerOrdenLabel() {
+    return _ordenes
+        .firstWhere((o) => o.$1 == _ordenTipo, orElse: () => _ordenes.first)
+        .$2;
+  }
+
+  List<QueryDocumentSnapshot> _aplicarOrden(
+    List<QueryDocumentSnapshot> pedidos,
+  ) {
+    final lista = List<QueryDocumentSnapshot>.from(pedidos);
+    lista.sort((a, b) {
+      final aData = a.data() as Map<String, dynamic>? ?? {};
+      final bData = b.data() as Map<String, dynamic>? ?? {};
+      final aCreatedAt = aData['createdAt'] as Timestamp?;
+      final bCreatedAt = bData['createdAt'] as Timestamp?;
+      final aState = aData['state'] as int? ?? 0;
+      final bState = bData['state'] as int? ?? 0;
+
+      switch (_ordenTipo) {
+        case 'fecha_asc':
+          if (aCreatedAt == null && bCreatedAt == null) return 0;
+          if (aCreatedAt == null) return 1;
+          if (bCreatedAt == null) return -1;
+          return aCreatedAt.compareTo(bCreatedAt);
+        case 'estado':
+          final cmpEstado = aState.compareTo(bState);
+          if (cmpEstado != 0) return cmpEstado;
+          if (aCreatedAt == null && bCreatedAt == null) return 0;
+          if (aCreatedAt == null) return 1;
+          if (bCreatedAt == null) return -1;
+          return bCreatedAt.compareTo(aCreatedAt);
+        case 'fecha_desc':
+        default:
+          if (aCreatedAt == null && bCreatedAt == null) return 0;
+          if (aCreatedAt == null) return 1;
+          if (bCreatedAt == null) return -1;
+          return bCreatedAt.compareTo(aCreatedAt);
+      }
+    });
+    return lista;
   }
 
   String _obtenerEstadoTexto(int estado) {
@@ -249,7 +305,11 @@ class _HomeClientPageState extends State<HomeClientPage>
               children: [
                 Text(
                   'Codigo de pedido',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 SizedBox(height: 20),
                 TextField(
@@ -519,26 +579,112 @@ class _HomeClientPageState extends State<HomeClientPage>
       body: SafeArea(
         child: Column(
           children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+            Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
               child: Row(
-                children: _filtros.map((filtro) {
-                  final (codigo, label) = filtro;
-                  final seleccionado = _filtroEstado == codigo;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(label),
-                      selected: seleccionado,
-                      onSelected: (selected) {
-                        setState(() {
-                          _filtroEstado = selected ? codigo : null;
-                        });
-                      },
+                children: [
+                  Expanded(
+                    child: PopupMenuButton<int>(
+                      initialValue: _filtroEstado,
+                      onSelected: (value) =>
+                          setState(() => _filtroEstado = value),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.filter_list_rounded,
+                              size: 20,
+                              color: accentColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _obtenerFiltroLabel(),
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodyMedium,
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ],
+                        ),
+                      ),
+                      itemBuilder: (context) => _filtros
+                          .map(
+                            (f) => PopupMenuItem<int>(
+                              value: f.$1,
+                              child: Text(f.$2),
+                            ),
+                          )
+                          .toList(),
                     ),
-                  );
-                }).toList(),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: PopupMenuButton<String>(
+                      initialValue: _ordenTipo,
+                      onSelected: (value) => setState(() {
+                            _ordenTipo = value;
+                            if (value == 'estado') _filtroEstado = 0;
+                          }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.swap_vert_rounded,
+                              size: 20,
+                              color: accentColor,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _obtenerOrdenLabel(),
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.bodyMedium,
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ],
+                        ),
+                      ),
+                      itemBuilder: (context) => _ordenes
+                          .map(
+                            (o) => PopupMenuItem<String>(
+                              value: o.$1,
+                              child: Text(o.$2),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -588,22 +734,9 @@ class _HomeClientPageState extends State<HomeClientPage>
                     );
                   }
 
-                  // Ordenar pedidos por fecha de creación (más recientes primero)
-                  var pedidos = snapshot.data!.docs.toList()
-                    ..sort((a, b) {
-                      final aData = a.data() as Map<String, dynamic>;
-                      final bData = b.data() as Map<String, dynamic>;
-                      final aCreatedAt = aData['createdAt'] as Timestamp?;
-                      final bCreatedAt = bData['createdAt'] as Timestamp?;
+                  var pedidos = snapshot.data!.docs.toList();
 
-                      if (aCreatedAt == null && bCreatedAt == null) return 0;
-                      if (aCreatedAt == null) return 1;
-                      if (bCreatedAt == null) return -1;
-
-                      return bCreatedAt.compareTo(aCreatedAt); // Descendente
-                    });
-
-                  if (_filtroEstado != null) {
+                  if (_filtroEstado != 0) {
                     pedidos = pedidos
                         .where(
                           (doc) =>
@@ -612,6 +745,8 @@ class _HomeClientPageState extends State<HomeClientPage>
                         )
                         .toList();
                   }
+
+                  pedidos = _aplicarOrden(pedidos);
 
                   if (pedidos.isEmpty) {
                     final colorScheme = Theme.of(context).colorScheme;
@@ -636,7 +771,7 @@ class _HomeClientPageState extends State<HomeClientPage>
                   }
 
                   return ListView.builder(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.only(bottom: 8),
                     itemCount: pedidos.length,
                     itemBuilder: (context, index) {
                       final pedidoDoc = pedidos[index];
