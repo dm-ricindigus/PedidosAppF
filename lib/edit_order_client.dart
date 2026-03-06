@@ -3,13 +3,19 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'dart:developer' as developer;
 
 class DashedBorderPainter extends CustomPainter {
   final Color color;
   final double strokeWidth;
+  final double borderRadius;
 
-  DashedBorderPainter({this.color = Colors.grey, this.strokeWidth = 2.0});
+  DashedBorderPainter({
+    this.color = Colors.grey,
+    this.strokeWidth = 1.0,
+    this.borderRadius = 12.0,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -18,43 +24,25 @@ class DashedBorderPainter extends CustomPainter {
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke;
 
-    final dashWidth = 5.0;
-    final dashSpace = 3.0;
-    double startX = 0;
+    const dashWidth = 5.0;
+    const dashSpace = 3.0;
 
-    // Top border
-    while (startX < size.width) {
-      canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
-      startX += dashWidth + dashSpace;
-    }
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Radius.circular(borderRadius),
+    );
+    final path = Path()..addRRect(rrect);
 
-    // Right border
-    double startY = 0;
-    while (startY < size.height) {
-      canvas.drawLine(
-        Offset(size.width, startY),
-        Offset(size.width, startY + dashWidth),
-        paint,
-      );
-      startY += dashWidth + dashSpace;
-    }
-
-    // Bottom border
-    startX = size.width;
-    while (startX > 0) {
-      canvas.drawLine(
-        Offset(startX, size.height),
-        Offset(startX - dashWidth, size.height),
-        paint,
-      );
-      startX -= dashWidth + dashSpace;
-    }
-
-    // Left border
-    startY = size.height;
-    while (startY > 0) {
-      canvas.drawLine(Offset(0, startY), Offset(0, startY - dashWidth), paint);
-      startY -= dashWidth + dashSpace;
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final extractPath = metric.extractPath(
+          distance,
+          (distance + dashWidth).clamp(0, metric.length),
+        );
+        canvas.drawPath(extractPath, paint);
+        distance += dashWidth + dashSpace;
+      }
     }
   }
 
@@ -90,72 +78,61 @@ class FileItemWidget extends StatelessWidget {
     required this.onDelete,
   });
 
-  String _extensionArchivo(String fileName) {
-    final dotIndex = fileName.lastIndexOf('.');
-    if (dotIndex <= 0 || dotIndex == fileName.length - 1) return '';
-    return fileName.substring(dotIndex + 1);
+  String _acortarEnMedio(String text, int maxLength) {
+    if (text.length <= maxLength) return text;
+    if (maxLength <= 3) return text.substring(0, maxLength);
+    final int charsDisponibles = maxLength - 3;
+    final int inicio = (charsDisponibles / 2).ceil();
+    final int fin = charsDisponibles - inicio;
+    return '${text.substring(0, inicio)}...${text.substring(text.length - fin)}';
+  }
+
+  String _nombreArchivoCorto(String original, {int maxLength = 32}) {
+    if (original.length <= maxLength) return original;
+    final dotIndex = original.lastIndexOf('.');
+    if (dotIndex <= 0 || dotIndex == original.length - 1) {
+      return _acortarEnMedio(original, maxLength);
+    }
+    final String base = original.substring(0, dotIndex);
+    final String extension = original.substring(dotIndex);
+    final int maxBaseLength = maxLength - extension.length;
+    if (maxBaseLength <= 3) return _acortarEnMedio(original, maxLength);
+    return '${_acortarEnMedio(base, maxBaseLength)}$extension';
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final extension = _extensionArchivo(fileName);
+    final nombreVisible = _nombreArchivoCorto(fileName);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Container(
-        height: 56,
-        decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: colorScheme.outlineVariant, width: 1.0),
-        ),
-        padding: const EdgeInsets.only(left: 16, right: 4, top: 0, bottom: 0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    fileName,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    extension.isEmpty ? 'archivo' : 'Archivo.$extension',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Text(
+              nombreVisible,
+              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            Padding(
-              padding: const EdgeInsets.only(left: 16),
-              child: IconButton(
-                onPressed: onDelete,
-                icon: Icon(
-                  Icons.delete_outline_rounded,
-                  color: onDelete == null
-                      ? colorScheme.onSurfaceVariant
-                      : colorScheme.onSurface,
-                ),
-                iconSize: 24,
-                style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
-              ),
+          ),
+          IconButton(
+            onPressed: onDelete,
+            icon: Icon(
+              Icons.delete_outline,
+              color: onDelete == null ? Colors.grey[400] : Colors.grey[700],
             ),
-          ],
-        ),
+            iconSize: 18,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+        ],
       ),
     );
   }
@@ -339,54 +316,15 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
     return _draftMessageId!;
   }
 
-  Widget _buildBotonAgregarArchivo(ColorScheme colorScheme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: _isLoading ? null : _agregarArchivo,
-          borderRadius: BorderRadius.circular(8),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: CustomPaint(
-              painter: DashedBorderPainter(
-                color: colorScheme.outlineVariant,
-                strokeWidth: 2.0,
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(16.0),
-                height: 56.0,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Si deseas agrega un archivo',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    Icon(
-                      Icons.attach_file_rounded,
-                      color: colorScheme.onSurfaceVariant,
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Future<void> _agregarArchivo() async {
+    FocusManager.instance.primaryFocus?.unfocus();
     final FilePickerResult? result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       withData: true,
     );
+
+    if (!mounted) return;
+    FocusManager.instance.primaryFocus?.unfocus();
 
     if (result == null) return;
 
@@ -432,7 +370,7 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
     }
 
     setState(() {
-      _archivos.addAll(nuevosArchivos);
+      _archivos.insertAll(0, nuevosArchivos);
     });
   }
 
@@ -440,6 +378,73 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
     if (_isLoading) return;
     setState(() {
       _archivos.removeAt(index);
+    });
+  }
+
+  void _pedirConfirmarEliminarArchivo(int index, String fileName) {
+    if (_isLoading) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+        return Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Eliminar archivo',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                '¿Eliminar "$fileName" de la lista?',
+                style: Theme.of(context).textTheme.bodyLarge,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('Cancelar'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                    ),
+                    child: const Text('Eliminar'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    ).then((confirmado) {
+      if (mounted) {
+        FocusManager.instance.primaryFocus?.unfocus();
+      }
+      if (confirmado == true && mounted) {
+        _eliminarArchivo(index);
+      }
     });
   }
 
@@ -702,135 +707,185 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
               ),
             ],
           ),
-          actions: [const SizedBox(width: 48)],
+          actions: [
+            IconButton(
+              onPressed: _isLoading ? null : _agregarArchivo,
+              icon: const Icon(Icons.attach_file),
+              tooltip: 'Agregar archivo',
+            ),
+          ],
         ),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 0.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.assignment_rounded,
-                          size: 18,
-                          color: colorScheme.onSurface,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            widget.titulo,
-                            style: textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
+        body: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 0.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.assignment_rounded,
+                            size: 18,
+                            color: colorScheme.onSurface,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              widget.titulo,
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  TextField(
-                    controller: _descripcionController,
-                    maxLength: _maxCaracteresDescripcion,
-                    maxLines: 5,
-                    minLines: 5,
-                    buildCounter:
-                        (
-                          BuildContext context, {
-                          required int currentLength,
-                          required int? maxLength,
-                          required bool isFocused,
-                        }) {
-                          return Text(
-                            '$currentLength/$maxLength',
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: colorScheme.onSurfaceVariant),
-                          );
-                        },
-                    decoration: InputDecoration(
-                      labelText: 'Agrega nueva información al pedido',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        ],
                       ),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerLowest,
-                      alignLabelWithHint: true,
                     ),
-                    textInputAction: TextInputAction.newline,
-                    keyboardType: TextInputType.multiline,
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    TextField(
+                      controller: _descripcionController,
+                      maxLength: _maxCaracteresDescripcion,
+                      maxLines: 4,
+                      minLines: 4,
+                      buildCounter:
+                          (
+                            BuildContext context, {
+                            required int currentLength,
+                            required int? maxLength,
+                            required bool isFocused,
+                          }) {
+                            return Text(
+                              '$currentLength/$maxLength',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            );
+                          },
+                      decoration: InputDecoration(
+                        labelText: 'Agrega nueva información al pedido',
+                        border: OutlineInputBorder(),
+                        alignLabelWithHint: true,
+                      ),
+                      textInputAction: TextInputAction.newline,
+                      keyboardType: TextInputType.multiline,
+                      onEditingComplete: () => FocusScope.of(context).unfocus(),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: _archivos.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-                      child: _buildBotonAgregarArchivo(colorScheme),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-                      itemCount: _archivos.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == _archivos.length) {
-                          return _buildBotonAgregarArchivo(colorScheme);
-                        }
-                        return FileItemWidget(
-                          fileName: _archivos[index].file.name,
-                          onDelete: _isLoading
-                              ? null
-                              : () => _eliminarArchivo(index),
-                        );
-                      },
-                    ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (_descripcionVacia || _isLoading)
-                      ? null
-                      : _guardarMensaje,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    disabledBackgroundColor: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                    disabledForegroundColor: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant,
-                  ),
-                  child: _isLoading
-                      ? SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              colorScheme.onPrimary,
-                            ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: _archivos.isEmpty
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12.0),
+                          child: Stack(
+                            children: [
+                              Positioned.fill(
+                                child: CustomPaint(
+                                  painter: DashedBorderPainter(
+                                    color: Colors.grey.shade400,
+                                    strokeWidth: 1.0,
+                                    borderRadius: 12.0,
+                                  ),
+                                ),
+                              ),
+                              Positioned.fill(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Symbols.attach_file_off,
+                                          size: 32,
+                                          color: Colors.grey[400],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Text(
+                                          'No hay archivos adjuntos',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodyMedium
+                                              ?.copyWith(
+                                                color: Colors.grey[600],
+                                              ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         )
-                      : const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.send_rounded, size: 20),
-                            SizedBox(width: 8),
-                            Text('Enviar'),
-                          ],
+                      : SingleChildScrollView(
+                          padding: EdgeInsets.zero,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ..._archivos.asMap().entries.map((entry) {
+                                final archivo = entry.value;
+                                return FileItemWidget(
+                                  fileName: archivo.file.name,
+                                  onDelete: _isLoading
+                                      ? null
+                                      : () => _pedirConfirmarEliminarArchivo(
+                                          entry.key,
+                                          archivo.file.name,
+                                        ),
+                                );
+                              }).toList(),
+                            ],
+                          ),
                         ),
                 ),
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: (_descripcionVacia || _isLoading)
+                        ? null
+                        : _guardarMensaje,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.send_rounded, size: 20),
+                              SizedBox(width: 8),
+                              Text('Enviar'),
+                            ],
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

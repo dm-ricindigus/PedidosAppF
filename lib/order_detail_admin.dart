@@ -7,6 +7,7 @@ import 'package:pedidosapp/widgets/order_item.dart';
 class HistorialItem extends StatelessWidget {
   final String messageId;
   final String numeroPedido;
+  final String titulo;
   final String fecha;
   final String descripcion;
   final int cantidadArchivos;
@@ -15,6 +16,7 @@ class HistorialItem extends StatelessWidget {
     super.key,
     required this.messageId,
     required this.numeroPedido,
+    required this.titulo,
     required this.fecha,
     required this.descripcion,
     required this.cantidadArchivos,
@@ -32,6 +34,7 @@ class HistorialItem extends StatelessWidget {
             builder: (context) => MessageDetailAdminPage(
               messageId: messageId,
               numeroPedido: numeroPedido,
+              titulo: titulo,
             ),
           ),
         );
@@ -503,6 +506,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
                             return HistorialItem(
                               messageId: mensajes[index].id,
                               numeroPedido: widget.numeroPedido,
+                              titulo: widget.titulo,
                               fecha: fecha,
                               descripcion: descripcion,
                               cantidadArchivos: attachments.length,

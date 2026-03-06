@@ -5,11 +5,18 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:developer' as developer;
 
+import 'package:material_symbols_icons/material_symbols_icons.dart';
+
 class DashedBorderPainter extends CustomPainter {
   final Color color;
   final double strokeWidth;
+  final double borderRadius;
 
-  DashedBorderPainter({this.color = Colors.grey, this.strokeWidth = 2.0});
+  DashedBorderPainter({
+    this.color = Colors.grey,
+    this.strokeWidth = 1.0,
+    this.borderRadius = 12.0,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -18,43 +25,25 @@ class DashedBorderPainter extends CustomPainter {
       ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke;
 
-    final dashWidth = 5.0;
-    final dashSpace = 3.0;
-    double startX = 0;
+    const dashWidth = 5.0;
+    const dashSpace = 3.0;
 
-    // Top border
-    while (startX < size.width) {
-      canvas.drawLine(Offset(startX, 0), Offset(startX + dashWidth, 0), paint);
-      startX += dashWidth + dashSpace;
-    }
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Radius.circular(borderRadius),
+    );
+    final path = Path()..addRRect(rrect);
 
-    // Right border
-    double startY = 0;
-    while (startY < size.height) {
-      canvas.drawLine(
-        Offset(size.width, startY),
-        Offset(size.width, startY + dashWidth),
-        paint,
-      );
-      startY += dashWidth + dashSpace;
-    }
-
-    // Bottom border
-    startX = size.width;
-    while (startX > 0) {
-      canvas.drawLine(
-        Offset(startX, size.height),
-        Offset(startX - dashWidth, size.height),
-        paint,
-      );
-      startX -= dashWidth + dashSpace;
-    }
-
-    // Left border
-    startY = size.height;
-    while (startY > 0) {
-      canvas.drawLine(Offset(0, startY), Offset(0, startY - dashWidth), paint);
-      startY -= dashWidth + dashSpace;
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final extractPath = metric.extractPath(
+          distance,
+          (distance + dashWidth).clamp(0, metric.length),
+        );
+        canvas.drawPath(extractPath, paint);
+        distance += dashWidth + dashSpace;
+      }
     }
   }
 
@@ -521,7 +510,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
     }
 
     setState(() {
-      _archivos.addAll(nuevosArchivos);
+      _archivos.insertAll(0, nuevosArchivos);
     });
   }
 
@@ -606,6 +595,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: Column(
           mainAxisSize: MainAxisSize.min,
@@ -625,11 +615,20 @@ class _NewOrderPageState extends State<NewOrderPage> {
         centerTitle: false,
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: _isLoading ? null : _agregarArchivo,
+            icon: const Icon(Icons.attach_file),
+            tooltip: 'Agregar archivo',
+          ),
+        ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Column(
+          children: [
+            Padding(
               padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 0.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -661,8 +660,8 @@ class _NewOrderPageState extends State<NewOrderPage> {
                   TextField(
                     controller: _descripcionController,
                     maxLength: _maxCaracteresDescripcion,
-                    maxLines: 5,
-                    minLines: 5,
+                    maxLines: 4,
+                    minLines: 4,
                     buildCounter:
                         (
                           BuildContext context, {
@@ -685,75 +684,104 @@ class _NewOrderPageState extends State<NewOrderPage> {
                     ),
                     textInputAction: TextInputAction.newline,
                     keyboardType: TextInputType.multiline,
+                    onEditingComplete: () => FocusScope.of(context).unfocus(),
                   ),
-                  SizedBox(height: 20),
-                  ..._archivos.asMap().entries.map((entry) {
-                    final archivo = entry.value;
-                    return FileItemWidget(
-                      fileName: archivo.file.name,
-                      onDelete: _isLoading
-                          ? null
-                          : () => _eliminarArchivo(entry.key),
-                    );
-                  }).toList(),
-                  InkWell(
-                    onTap: _isLoading ? null : _agregarArchivo,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: CustomPaint(
-                        painter: DashedBorderPainter(
-                          color: Colors.grey.shade400,
-                          strokeWidth: 2.0,
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.all(16.0),
-                          height: 56.0,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Si deseas agrega un archivo',
-                                style: TextStyle(fontSize: 14),
-                              ),
-                              Icon(Icons.attach_file),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 12),
                 ],
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _puedeGuardar ? _guardarPedido : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
+            SizedBox(height: 20),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                child: _archivos.isEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(12.0),
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: CustomPaint(
+                                painter: DashedBorderPainter(
+                                  color: Colors.grey.shade400,
+                                  strokeWidth: 1.0,
+                                  borderRadius: 12.0,
+                                ),
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Center(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Symbols.attach_file_off,
+                                        size: 32,
+                                        color: Colors.grey[400],
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        'No hay archivos adjuntos',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.copyWith(color: Colors.grey[600]),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       )
-                    : const Text('Guardar'),
+                    : SingleChildScrollView(
+                        padding: EdgeInsets.zero,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ..._archivos.asMap().entries.map((entry) {
+                              final archivo = entry.value;
+                              return FileItemWidget(
+                                fileName: archivo.file.name,
+                                onDelete: _isLoading
+                                    ? null
+                                    : () => _eliminarArchivo(entry.key),
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                      ),
               ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _puedeGuardar ? _guardarPedido : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Text('Guardar'),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

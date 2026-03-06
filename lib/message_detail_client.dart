@@ -1,6 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
+class _DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double borderRadius;
+
+  _DashedBorderPainter({
+    this.color = Colors.grey,
+    this.strokeWidth = 1.0,
+    this.borderRadius = 8.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    const dashWidth = 5.0;
+    const dashSpace = 3.0;
+
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Radius.circular(borderRadius),
+    );
+    final path = Path()..addRRect(rrect);
+
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final extractPath = metric.extractPath(
+          distance,
+          (distance + dashWidth).clamp(0, metric.length),
+        );
+        canvas.drawPath(extractPath, paint);
+        distance += dashWidth + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
 class MessageDetailClientPage extends StatelessWidget {
   final String fecha;
   final String descripcion;
@@ -95,23 +139,38 @@ class MessageDetailClientPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Container(
+            SizedBox(
               width: double.infinity,
               height: 168,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLowest,
-                border: Border.all(color: colorScheme.outlineVariant),
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: SingleChildScrollView(
-                child: Text(
-                  descripcion,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface,
-                  ),
-                  softWrap: true,
-                  textAlign: TextAlign.justify,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _DashedBorderPainter(
+                          color: colorScheme.outlineVariant,
+                          strokeWidth: 1.0,
+                          borderRadius: 8.0,
+                        ),
+                      ),
+                    ),
+                    Positioned.fill(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: SingleChildScrollView(
+                          child: Text(
+                            descripcion,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurface,
+                            ),
+                            softWrap: true,
+                            textAlign: TextAlign.justify,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
