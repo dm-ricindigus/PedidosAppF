@@ -145,7 +145,7 @@ class FileItemWidget extends StatelessWidget {
               Icons.delete_outline,
               color: onDelete == null ? Colors.grey[400] : Colors.grey[700],
             ),
-            iconSize: 18,
+            iconSize: 24,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
           ),
@@ -175,15 +175,46 @@ class _NewOrderPageState extends State<NewOrderPage> {
   bool _isLoadingSheetOpen = false;
   String? _draftOrderId;
   String? _draftMessageId;
+  DateTime? _fechaMaxEntrega;
   static const int _maxCaracteresTitulo = 50;
   static const int _maxCaracteresDescripcion = 500;
   static const int _maxTamanoArchivoBytes = 6 * 1024 * 1024;
   static const int _concurrenciaSubida = 3;
 
+  DateTime get _fechaMinima {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day + 1);
+  }
+
+  DateTime get _fechaMaxima {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month + 2, now.day);
+  }
+
+  String _formatearFecha(DateTime d) {
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  }
+
+  Future<void> _abrirDatePicker() async {
+    if (_isLoading) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _fechaMaxEntrega ?? _fechaMinima,
+      firstDate: _fechaMinima,
+      lastDate: _fechaMaxima,
+      helpText: 'Fecha máxima de entrega',
+    );
+    if (picked != null && mounted) {
+      setState(() => _fechaMaxEntrega = picked);
+    }
+  }
+
   bool get _puedeGuardar {
     return !_isLoading &&
         _tituloController.text.trim().isNotEmpty &&
-        _descripcionController.text.trim().isNotEmpty;
+        _descripcionController.text.trim().isNotEmpty &&
+        _fechaMaxEntrega != null;
   }
 
   void _onCamposChanged() {
@@ -379,6 +410,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
         'title': titulo,
         'state': 1, // Estado 1: Ingresado
         'clientId': user.uid,
+        'maxDeliveryDate': Timestamp.fromDate(_fechaMaxEntrega!),
         'createdAt': FieldValue.serverTimestamp(),
       });
 
@@ -685,6 +717,29 @@ class _NewOrderPageState extends State<NewOrderPage> {
                     textInputAction: TextInputAction.newline,
                     keyboardType: TextInputType.multiline,
                     onEditingComplete: () => FocusScope.of(context).unfocus(),
+                  ),
+                  SizedBox(height: 20),
+                  InkWell(
+                    onTap: _isLoading ? null : _abrirDatePicker,
+                    borderRadius: BorderRadius.circular(4),
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Fecha máxima de entrega',
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.calendar_today, size: 20),
+                      ),
+                      child: Text(
+                        _fechaMaxEntrega != null
+                            ? _formatearFecha(_fechaMaxEntrega!)
+                            : 'Seleccionar fecha',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: _fechaMaxEntrega != null
+                              ? null
+                              : Colors.grey[600],
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

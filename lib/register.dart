@@ -26,6 +26,58 @@ class _RegisterPageState extends State<RegisterPage> {
 
   final _formKey = GlobalKey<FormState>();
 
+  Future<void> _showVerificationSentSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      useSafeArea: true,
+      builder: (ctx) {
+        final colorScheme = Theme.of(ctx).colorScheme;
+        return PopScope(
+          canPop: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Icon(
+                  Icons.mark_email_read_rounded,
+                  color: colorScheme.primary,
+                  size: 42,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Verifica tu correo',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Te enviamos un enlace de verificación a ${_emailController.text.trim()}. Revisa tu bandeja de entrada, spam y promociones. Haz clic en el enlace para activar tu cuenta y poder iniciar sesión.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(ctx).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: colorScheme.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('Entendido'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _createUser() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -69,17 +121,23 @@ class _RegisterPageState extends State<RegisterPage> {
           await createdUser.delete();
           rethrow; // Relanzar el error para manejarlo abajo
         }
+
+        // Enviar correo de verificación (Firebase valida que el correo exista)
+        _auth.setLanguageCode('es');
+        try {
+          await createdUser.sendEmailVerification();
+        } catch (_) {
+          // Si falla el envío, la cuenta existe pero el usuario deberá
+          // solicitar reenviar el correo desde el login
+        }
+
+        // Cerrar sesión hasta que verifiquen el correo
+        await _auth.signOut();
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Usuario creado exitosamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Regresar a la pantalla de login
+        await _showVerificationSentSheet(context);
+        if (!mounted) return;
         Navigator.pop(context);
       }
     } on FirebaseAuthException catch (e) {

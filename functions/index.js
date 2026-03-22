@@ -126,6 +126,7 @@ const ESTADOS = {
   3: 'Confección',
   4: 'Acabados',
   5: 'Empacado',
+  6: 'Entregado',
 };
 
 // Envía notificación al cliente cuando el admin cambia el estado del pedido

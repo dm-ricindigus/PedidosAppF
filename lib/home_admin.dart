@@ -16,23 +16,26 @@ class HomeAdminPage extends StatefulWidget {
 }
 
 class _HomeAdminPageState extends State<HomeAdminPage> {
-  /// 0 = Todos, 1-5 = estados específicos
+  /// 0 = Todos, 1-6 = estados específicos, 7 = En proceso (todos menos Entregado)
   static const List<(int, String)> _filtros = [
     (0, 'Todos'),
+    (7, 'En proceso'),
     (1, 'Ingresado'),
     (2, 'Impresión y Transferencia'),
     (3, 'Confección'),
     (4, 'Acabados'),
     (5, 'Empacado'),
+    (6, 'Entregado'),
   ];
 
   static const List<(String, String)> _ordenes = [
     ('fecha_desc', 'Más reciente'),
     ('fecha_asc', 'Más antiguo'),
     ('estado', 'Por estado'),
+    ('fecha_entrega', 'Por fecha de entrega'),
   ];
 
-  int _filtroEstado = 0;
+  int _filtroEstado = 7; // 7 = En proceso
   String _ordenTipo = 'fecha_desc';
 
   String _obtenerFiltroLabel() {
@@ -72,6 +75,25 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
           if (aCreatedAt == null) return 1;
           if (bCreatedAt == null) return -1;
           return bCreatedAt.compareTo(aCreatedAt);
+        case 'fecha_entrega':
+          {
+            final aEntregado = aState == 6;
+            final bEntregado = bState == 6;
+            if (aEntregado && !bEntregado) return 1;
+            if (!aEntregado && bEntregado) return -1;
+            final aMaxDelivery = aData['maxDeliveryDate'] as Timestamp?;
+            final bMaxDelivery = bData['maxDeliveryDate'] as Timestamp?;
+            if (aEntregado && bEntregado) {
+              if (aMaxDelivery == null && bMaxDelivery == null) return 0;
+              if (aMaxDelivery == null) return 1;
+              if (bMaxDelivery == null) return -1;
+              return bMaxDelivery.compareTo(aMaxDelivery);
+            }
+            if (aMaxDelivery == null && bMaxDelivery == null) return 0;
+            if (aMaxDelivery == null) return 1;
+            if (bMaxDelivery == null) return -1;
+            return aMaxDelivery.compareTo(bMaxDelivery);
+          }
         case 'fecha_desc':
         default:
           if (aCreatedAt == null && bCreatedAt == null) return 0;
@@ -95,18 +117,22 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
         return 'Acabados';
       case 5:
         return 'Empacado';
+      case 6:
+        return 'Entregado';
       default:
         return 'Sin estado';
     }
   }
 
   void _mostrarModalConfirmarSalir(BuildContext context) {
-    final FirebaseAuth _auth = FirebaseAuth.instance;
+    final auth = FirebaseAuth.instance;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
 
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      builder: (modalContext) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.only(
@@ -124,7 +150,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
+                color: Theme.of(modalContext).colorScheme.primary,
               ),
             ),
             SizedBox(height: 16),
@@ -138,32 +164,30 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
               children: [
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(context);
+                    Navigator.pop(modalContext);
                   },
                   style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(modalContext).colorScheme.primary,
                   ),
                   child: Text('Cancelar'),
                 ),
                 SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () async {
-                    Navigator.pop(context);
+                    Navigator.pop(modalContext);
                     try {
-                      await _auth.signOut();
+                      await auth.signOut();
                       if (context.mounted) {
-                        Navigator.pushAndRemoveUntil(
-                          context,
+                        navigator.pushAndRemoveUntil(
                           MaterialPageRoute(
-                            builder: (context) =>
-                                const LoginPage(title: 'Login'),
+                            builder: (_) => const LoginPage(title: 'Login'),
                           ),
                           (route) => false,
                         );
                       }
                     } catch (e) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        scaffoldMessenger.showSnackBar(
                           SnackBar(
                             content: Text('Error al cerrar sesión: $e'),
                             backgroundColor: Colors.red,
@@ -173,7 +197,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    backgroundColor: Theme.of(modalContext).colorScheme.primary,
                     foregroundColor: Colors.white,
                   ),
                   child: Text('Cerrar sesión'),
@@ -208,22 +232,21 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                 child: Text(
                   'Se creó el código de pedido:',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
                   ),
                   textAlign: TextAlign.center,
                 ),
               ),
-              SizedBox(height: 20),
               Row(
                 children: [
                   Spacer(),
                   Text(
                     codigo,
-                    style: TextStyle(fontSize: 18, color: Colors.grey[700]),
+                    style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                   ),
-                  SizedBox(width: 8),
+
                   IconButton(
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: codigo));
@@ -240,9 +263,8 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                   Spacer(),
                 ],
               ),
-              SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
+              SizedBox(height: 8),
+              Center(
                 child: ElevatedButton(
                   onPressed: () {
                     Navigator.pop(context);
@@ -250,7 +272,53 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                  child: Text('Entendido'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _mostrarModalError(BuildContext context, String errorMessage) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isDismissible: true,
+      enableDrag: true,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(Icons.error, size: 48, color: Colors.red),
+              SizedBox(height: 16),
+              Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 20),
+              Center(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   ),
                   child: Text('Entendido'),
                 ),
@@ -264,211 +332,231 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
 
   void _abrirModalNuevoPedido(BuildContext context) {
     final TextEditingController correoController = TextEditingController();
-    final FirebaseAuth _auth = FirebaseAuth.instance;
-    final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
-      app: _auth.app,
+    final FirebaseAuth auth = FirebaseAuth.instance;
+    final FirebaseFunctions functions = FirebaseFunctions.instanceFor(
+      app: auth.app,
       region: 'us-central1',
     );
-    bool _isLoading = false;
+    bool isLoading = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      isDismissible: true,
+      enableDrag: true,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
+        builder: (context, setState) => PopScope(
+          canPop: !isLoading,
+          child: Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Indica el correo del cliente',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.only(
+                left: 16.0,
+                right: 16.0,
+                bottom: 32.0,
+                top: 16.0,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: correoController,
+                      keyboardType: TextInputType.emailAddress,
+                      enabled: !isLoading,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.grey.shade200,
+                        hintText: 'Correo del cliente',
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(999),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                SizedBox(height: 20),
-                TextField(
-                  controller: correoController,
-                  keyboardType: TextInputType.emailAddress,
-                  enabled: !_isLoading,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'Ingresa el correo del cliente',
-                  ),
-                ),
-                SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () async {
-                            if (correoController.text.trim().isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Por favor ingresa un correo'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                              return;
-                            }
-
-                            setState(() {
-                              _isLoading = true;
-                            });
-
-                            try {
-                              developer.log(
-                                '🔵 Iniciando creación de código...',
-                                name: 'CreateOrderCode',
-                              );
-
-                              // Obtener token de autenticación
-                              final User? user = _auth.currentUser;
-                              if (user == null) {
-                                throw Exception('Usuario no autenticado');
+                  SizedBox(width: 12),
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: isLoading
+                          ? null
+                          : () async {
+                              if (correoController.text.trim().isEmpty) {
+                                if (context.mounted) {
+                                  _mostrarModalError(
+                                    context,
+                                    'Por favor ingresa un correo',
+                                  );
+                                }
+                                return;
                               }
 
-                              developer.log(
-                                '✅ Usuario autenticado: ${user.email}',
-                                name: 'CreateOrderCode',
-                              );
-
-                              final String? idToken = await user.getIdToken(
-                                true,
-                              );
-                              if (idToken == null) {
-                                throw Exception('No se pudo obtener el token');
-                              }
-
-                              developer.log(
-                                '✅ Token obtenido',
-                                name: 'CreateOrderCode',
-                              );
-                              developer.log(
-                                '📧 Email del cliente: ${correoController.text.trim()}',
-                                name: 'CreateOrderCode',
-                              );
-
-                              // Llamar a la Cloud Function
-                              final HttpsCallable callable = _functions
-                                  .httpsCallable('createOrderCode');
-
-                              developer.log(
-                                '📞 Llamando a Cloud Function...',
-                                name: 'CreateOrderCode',
-                              );
-
-                              final result = await callable.call({
-                                'clientEmail': correoController.text.trim(),
-                                '_authToken': idToken,
+                              setState(() {
+                                isLoading = true;
                               });
 
-                              developer.log(
-                                '✅ Respuesta recibida: $result',
-                                name: 'CreateOrderCode',
-                              );
-
-                              final data = result.data as Map<String, dynamic>;
-                              developer.log(
-                                '📦 Datos: $data',
-                                name: 'CreateOrderCode',
-                              );
-
-                              if (data['success'] == true &&
-                                  data['code'] != null) {
-                                final codigo = data['code'] as String;
+                              try {
                                 developer.log(
-                                  '✅ Código generado: $codigo',
+                                  '🔵 Iniciando creación de código...',
+                                  name: 'CreateOrderCode',
+                                );
+
+                                // Obtener token de autenticación
+                                final User? user = auth.currentUser;
+                                if (user == null) {
+                                  throw Exception('Usuario no autenticado');
+                                }
+
+                                developer.log(
+                                  '✅ Usuario autenticado: ${user.email}',
+                                  name: 'CreateOrderCode',
+                                );
+
+                                final String? idToken = await user.getIdToken(
+                                  true,
+                                );
+                                if (idToken == null) {
+                                  throw Exception(
+                                    'No se pudo obtener el token',
+                                  );
+                                }
+
+                                developer.log(
+                                  '✅ Token obtenido',
+                                  name: 'CreateOrderCode',
+                                );
+                                developer.log(
+                                  '📧 Email del cliente: ${correoController.text.trim()}',
+                                  name: 'CreateOrderCode',
+                                );
+
+                                // Llamar a la Cloud Function
+                                final HttpsCallable callable = functions
+                                    .httpsCallable('createOrderCode');
+
+                                developer.log(
+                                  '📞 Llamando a Cloud Function...',
+                                  name: 'CreateOrderCode',
+                                );
+
+                                final result = await callable.call({
+                                  'clientEmail': correoController.text.trim(),
+                                  'authToken': idToken,
+                                });
+
+                                developer.log(
+                                  '✅ Respuesta recibida: $result',
+                                  name: 'CreateOrderCode',
+                                );
+
+                                final data =
+                                    result.data as Map<String, dynamic>;
+                                developer.log(
+                                  '📦 Datos: $data',
+                                  name: 'CreateOrderCode',
+                                );
+
+                                if (data['success'] == true &&
+                                    data['code'] != null) {
+                                  final codigo = data['code'] as String;
+                                  developer.log(
+                                    '✅ Código generado: $codigo',
+                                    name: 'CreateOrderCode',
+                                  );
+
+                                  if (context.mounted) {
+                                    Navigator.pop(context);
+                                    _mostrarModalConfirmacion(context, codigo);
+                                  }
+                                } else {
+                                  developer.log(
+                                    '❌ Respuesta inválida: $data',
+                                    name: 'CreateOrderCode',
+                                  );
+                                  throw Exception(
+                                    'Respuesta inválida de la función',
+                                  );
+                                }
+                              } catch (e, stackTrace) {
+                                developer.log(
+                                  '❌ Error: $e',
+                                  name: 'CreateOrderCode',
+                                );
+                                developer.log(
+                                  '❌ StackTrace: $stackTrace',
                                   name: 'CreateOrderCode',
                                 );
 
                                 if (context.mounted) {
-                                  Navigator.pop(context);
-                                  _mostrarModalConfirmacion(context, codigo);
-                                }
-                              } else {
-                                developer.log(
-                                  '❌ Respuesta inválida: $data',
-                                  name: 'CreateOrderCode',
-                                );
-                                throw Exception(
-                                  'Respuesta inválida de la función',
-                                );
-                              }
-                            } catch (e, stackTrace) {
-                              developer.log(
-                                '❌ Error: $e',
-                                name: 'CreateOrderCode',
-                              );
-                              developer.log(
-                                '❌ StackTrace: $stackTrace',
-                                name: 'CreateOrderCode',
-                              );
+                                  String errorMessage =
+                                      'Error al crear el código';
+                                  if (e is FirebaseFunctionsException) {
+                                    errorMessage = e.message ?? errorMessage;
+                                    developer.log(
+                                      '❌ FirebaseFunctionsException: ${e.code} - ${e.message}',
+                                      name: 'CreateOrderCode',
+                                    );
+                                  } else {
+                                    errorMessage = e.toString();
+                                  }
 
-                              if (context.mounted) {
-                                String errorMessage =
-                                    'Error al crear el código';
-                                if (e is FirebaseFunctionsException) {
-                                  errorMessage = e.message ?? errorMessage;
-                                  developer.log(
-                                    '❌ FirebaseFunctionsException: ${e.code} - ${e.message}',
-                                    name: 'CreateOrderCode',
-                                  );
-                                } else {
-                                  errorMessage = e.toString();
+                                  _mostrarModalError(context, errorMessage);
                                 }
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(errorMessage),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
+                              } finally {
+                                if (context.mounted) {
+                                  setState(() {
+                                    isLoading = false;
+                                  });
+                                }
                               }
-                            } finally {
-                              if (context.mounted) {
-                                setState(() {
-                                  _isLoading = false;
-                                });
-                              }
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: _isLoading
-                        ? SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.zero,
+                        shape: CircleBorder(),
+                      ),
+                      child: isLoading
+                          ? SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
-                            ),
-                          )
-                        : Text('Confirmar'),
+                            )
+                          : Icon(Icons.check),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -478,9 +566,9 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
 
   @override
   Widget build(BuildContext context) {
-    final FirebaseAuth _auth = FirebaseAuth.instance;
-    final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-    final User? currentUser = _auth.currentUser;
+    final FirebaseAuth auth = FirebaseAuth.instance;
+    final FirebaseFirestore firestore = FirebaseFirestore.instance;
+    final User? currentUser = auth.currentUser;
     final String userInfo = currentUser != null && currentUser.email != null
         ? 'Administrador: ${currentUser.email}'
         : 'Administrador: No identificado';
@@ -490,6 +578,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     const Color onAccentColor = Colors.white;
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: theme.colorScheme.surfaceContainerLow,
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -541,7 +630,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Row(
                 children: [
                   Expanded(
@@ -551,8 +640,8 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                           setState(() => _filtroEstado = value),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                          horizontal: 8,
+                          vertical: 8,
                         ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
@@ -598,13 +687,13 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                     child: PopupMenuButton<String>(
                       initialValue: _ordenTipo,
                       onSelected: (value) => setState(() {
-                            _ordenTipo = value;
-                            if (value == 'estado') _filtroEstado = 0;
-                          }),
+                        _ordenTipo = value;
+                        if (value == 'estado') _filtroEstado = 0;
+                      }),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                          horizontal: 8,
+                          vertical: 8,
                         ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
@@ -650,7 +739,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
             ),
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
-                stream: _firestore
+                stream: firestore
                     .collection('orders')
                     .orderBy('createdAt', descending: true)
                     .snapshots(),
@@ -694,13 +783,23 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                   var pedidos = snapshot.data!.docs.toList();
 
                   if (_filtroEstado != 0) {
-                    pedidos = pedidos
-                        .where(
-                          (doc) =>
-                              (doc.data() as Map<String, dynamic>)['state'] ==
-                              _filtroEstado,
-                        )
-                        .toList();
+                    if (_filtroEstado == 7) {
+                      pedidos = pedidos
+                          .where(
+                            (doc) =>
+                                (doc.data() as Map<String, dynamic>)['state'] !=
+                                6,
+                          )
+                          .toList();
+                    } else {
+                      pedidos = pedidos
+                          .where(
+                            (doc) =>
+                                (doc.data() as Map<String, dynamic>)['state'] ==
+                                _filtroEstado,
+                          )
+                          .toList();
+                    }
                   }
 
                   pedidos = _aplicarOrden(pedidos);
@@ -738,12 +837,16 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
                       final String titulo =
                           (data['title'] as String?) ?? 'Sin titulo';
                       final int? state = data['state'] as int?;
+                      final maxDeliveryTs =
+                          data['maxDeliveryDate'] as Timestamp?;
+                      final DateTime? fechaMaxEntrega = maxDeliveryTs?.toDate();
                       final String numeroPedido = 'Pedido Nº $orderCode';
 
                       return OrderItem(
                         numeroPedido: numeroPedido,
                         titulo: titulo,
                         estado: _estadoDesdeCodigo(state),
+                        fechaMaxEntrega: fechaMaxEntrega,
                         onTap: () {
                           Navigator.push(
                             context,

@@ -71,6 +71,115 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
+  Future<void> _showEmailNotVerifiedSheet(
+    BuildContext context,
+    User user,
+  ) async {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isSendingHolder = ValueNotifier<bool>(false);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      useSafeArea: true,
+      builder: (ctx) {
+        return PopScope(
+          canPop: false,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            child: ValueListenableBuilder<bool>(
+              valueListenable: isSendingHolder,
+              builder: (_, isSending, child) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Icon(
+                      Icons.mark_email_unread_rounded,
+                      color: colorScheme.primary,
+                      size: 42,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Verifica tu correo',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(ctx).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Debes verificar tu correo electrónico antes de iniciar sesión. Revisa tu bandeja de entrada, spam y promociones.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(ctx).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: isSendingHolder.value
+                          ? null
+                          : () async {
+                              isSendingHolder.value = true;
+                              try {
+                                _auth.setLanguageCode('es');
+                                await user.sendEmailVerification();
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Correo de verificación enviado',
+                                      ),
+                                      backgroundColor: Colors.green,
+                                    ),
+                                  );
+                                  Navigator.pop(ctx);
+                                }
+                              } catch (_) {
+                                if (ctx.mounted) {
+                                  isSendingHolder.value = false;
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'No se pudo reenviar. Intenta más tarde.',
+                                      ),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      icon: isSendingHolder.value
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.send_rounded),
+                      label: Text(
+                        isSendingHolder.value
+                            ? 'Enviando...'
+                            : 'Reenviar correo',
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Entendido'),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _signIn() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -112,6 +221,19 @@ class _LoginPageState extends State<LoginPage> {
       // Obtener el token del usuario autenticado
       User? user = userCredential.user;
       if (user != null) {
+        // Verificar que el correo esté confirmado antes de permitir acceso
+        await user.reload();
+        user = _auth.currentUser;
+        if (user != null && !user.emailVerified) {
+          if (mounted) {
+            await _showEmailNotVerifiedSheet(context, user);
+            await _auth.signOut();
+          }
+          return;
+        }
+
+        if (user == null) return;
+
         String? idToken = await user.getIdToken();
         developer.log('✅ Login exitoso', name: 'FirebaseAuth');
         developer.log('🔑 Token obtenido: $idToken', name: 'FirebaseAuth');
@@ -213,200 +335,210 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                flex: 1,
-                child: Center(
-                  child: Text(
-                    'Camisetas.com',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+        child: AbsorbPointer(
+          absorbing: _isLoading,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: Center(
+                    child: Text(
+                      'Camisetas.com',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-              Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      enabled: !_isLoading,
-                      onChanged: (_) {
-                        if (_emailErrorText != null) {
-                          setState(() {
-                            _emailErrorText = null;
-                          });
-                        }
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Correo electrónico',
-                        hintText: 'ejemplo@correo.com',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.email),
-                        errorText: _emailErrorText,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      enabled: !_isLoading,
-                      onChanged: (_) {
-                        if (_passwordErrorText != null) {
-                          setState(() {
-                            _passwordErrorText = null;
-                          });
-                        }
-                      },
-                      decoration: InputDecoration(
-                        labelText: 'Contraseña',
-                        hintText: 'Ingresa tu contraseña',
-                        border: const OutlineInputBorder(),
-                        prefixIcon: const Icon(Icons.lock),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                          ),
-                          onPressed: () {
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        enabled: !_isLoading,
+                        onChanged: (_) {
+                          if (_emailErrorText != null) {
                             setState(() {
-                              _obscurePassword = !_obscurePassword;
+                              _emailErrorText = null;
                             });
-                          },
+                          }
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Correo electrónico',
+                          hintText: 'ejemplo@correo.com',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.email),
+                          errorText: _emailErrorText,
                         ),
-                        errorText: _passwordErrorText,
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _signIn,
-                        style: ButtonStyle(
-                          backgroundColor: WidgetStateProperty.resolveWith((
-                            states,
-                          ) {
-                            final primary = Theme.of(context).colorScheme.primary;
-                            if (states.contains(WidgetState.disabled)) {
-                              return primary.withValues(alpha: 0.7);
-                            }
-                            return primary;
-                          }),
-                          foregroundColor: const WidgetStatePropertyAll(
-                            Colors.white,
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: _obscurePassword,
+                        enabled: !_isLoading,
+                        onChanged: (_) {
+                          if (_passwordErrorText != null) {
+                            setState(() {
+                              _passwordErrorText = null;
+                            });
+                          }
+                        },
+                        decoration: InputDecoration(
+                          labelText: 'Contraseña',
+                          hintText: 'Ingresa tu contraseña',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.lock),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                            ),
+                            onPressed: _isLoading
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
                           ),
+                          errorText: _passwordErrorText,
                         ),
-                        child: _isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _signIn,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Text(
+                                  'Ingresar',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
                                   ),
                                 ),
-                              )
-                            : const Text(
-                                'Ingresar',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    TextButton(
-                      onPressed: () async {
-                        await _hideKeyboard();
-                        if (!mounted) {
-                          return;
-                        }
-                        await Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RecoverPasswordPage(
-                              initialEmail: _emailController.text.trim(),
+                      const SizedBox(height: 24),
+                      TextButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () async {
+                                final navigator = Navigator.of(context);
+                                await _hideKeyboard();
+                                if (!mounted) return;
+                                await navigator.push<bool>(
+                                  MaterialPageRoute(
+                                    builder: (context) => RecoverPasswordPage(
+                                      initialEmail: _emailController.text
+                                          .trim(),
+                                    ),
+                                  ),
+                                );
+
+                                if (!mounted) {
+                                  return;
+                                }
+                                await _hideKeyboard();
+                              },
+                        style: ButtonStyle(
+                          padding: WidgetStateProperty.all(EdgeInsets.zero),
+                          minimumSize: WidgetStateProperty.all(Size.zero),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          splashFactory: NoSplash.splashFactory,
+                          overlayColor: WidgetStateProperty.all(
+                            Colors.transparent,
+                          ),
+                        ),
+                        child: Text(
+                          'Recuperar contraseña',
+                          style: TextStyle(
+                            decorationColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          'No tienes usuario?',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: _isLoading
+                              ? null
+                              : () async {
+                                  final navigator = Navigator.of(context);
+                                  await _hideKeyboard();
+                                  if (!mounted) return;
+                                  navigator.push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const RegisterPage(),
+                                    ),
+                                  );
+                                },
+                          style: ButtonStyle(
+                            padding: WidgetStateProperty.all(EdgeInsets.zero),
+                            minimumSize: WidgetStateProperty.all(Size.zero),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            splashFactory: NoSplash.splashFactory,
+                            overlayColor: WidgetStateProperty.all(
+                              Colors.transparent,
                             ),
                           ),
-                        );
-
-                        if (!mounted) {
-                          return;
-                        }
-                        await _hideKeyboard();
-                      },
-                      style: ButtonStyle(
-                        padding: WidgetStateProperty.all(EdgeInsets.zero),
-                        minimumSize: WidgetStateProperty.all(Size.zero),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        splashFactory: NoSplash.splashFactory,
-                        overlayColor: WidgetStateProperty.all(
-                          Colors.transparent,
-                        ),
-                      ),
-                      child: Text(
-                        'Recuperar contraseña',
-                        style: TextStyle(
-                          decorationColor: Theme.of(
-                            context,
-                          ).colorScheme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text('No tienes usuario?'),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () async {
-                        await _hideKeyboard();
-                        if (!mounted) {
-                          return;
-                        }
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const RegisterPage(),
+                          child: Text(
+                            'Registrate',
+                            style: TextStyle(
+                              decorationColor: Theme.of(
+                                context,
+                              ).colorScheme.primary,
+                            ),
                           ),
-                        );
-                      },
-                      style: ButtonStyle(
-                        padding: WidgetStateProperty.all(EdgeInsets.zero),
-                        minimumSize: WidgetStateProperty.all(Size.zero),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        splashFactory: NoSplash.splashFactory,
-                        overlayColor: WidgetStateProperty.all(
-                          Colors.transparent,
                         ),
-                      ),
-                      child: Text(
-                        'Registrate',
-                        style: TextStyle(
-                          decorationColor: Theme.of(
-                            context,
-                          ).colorScheme.primary,
-                        ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -524,9 +656,9 @@ class _RecoverPasswordPageState extends State<RecoverPasswordPage> {
                 Text(
                   'Correo enviado',
                   textAlign: TextAlign.center,
-                  style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+                  style: Theme.of(
+                    sheetContext,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -590,11 +722,7 @@ class _RecoverPasswordPageState extends State<RecoverPasswordPage> {
                     ),
                   ),
                 ),
-                Icon(
-                  Icons.lock_reset,
-                  size: 56,
-                  color: colorScheme.primary,
-                ),
+                Icon(Icons.lock_reset, size: 56, color: colorScheme.primary),
                 const SizedBox(height: 16),
                 Text(
                   '¿Olvidaste tu contraseña?',
@@ -607,9 +735,9 @@ class _RecoverPasswordPageState extends State<RecoverPasswordPage> {
                 Text(
                   'Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.',
                   textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 if (_errorMessage != null) ...[

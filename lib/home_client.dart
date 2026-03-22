@@ -21,23 +21,26 @@ class _HomeClientPageState extends State<HomeClientPage>
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// 0 = Todos, 1-5 = estados específicos
+  /// 0 = Todos, 1-6 = estados específicos, 7 = En proceso (todos menos Entregado)
   static const List<(int, String)> _filtros = [
     (0, 'Todos'),
+    (7, 'En proceso'),
     (1, 'Ingresado'),
     (2, 'Impresión y Transferencia'),
     (3, 'Confección'),
     (4, 'Acabados'),
     (5, 'Empacado'),
+    (6, 'Entregado'),
   ];
 
   static const List<(String, String)> _ordenes = [
     ('fecha_desc', 'Más reciente'),
     ('fecha_asc', 'Más antiguo'),
     ('estado', 'Por estado'),
+    ('fecha_entrega', 'Por fecha de entrega'),
   ];
 
-  int _filtroEstado = 0;
+  int _filtroEstado = 7; // 7 = En proceso
   String _ordenTipo = 'fecha_desc';
 
   @override
@@ -104,6 +107,24 @@ class _HomeClientPageState extends State<HomeClientPage>
           if (aCreatedAt == null) return 1;
           if (bCreatedAt == null) return -1;
           return bCreatedAt.compareTo(aCreatedAt);
+        case 'fecha_entrega': {
+          final aEntregado = aState == 6;
+          final bEntregado = bState == 6;
+          if (aEntregado && !bEntregado) return 1;
+          if (!aEntregado && bEntregado) return -1;
+          final aMaxDelivery = aData['maxDeliveryDate'] as Timestamp?;
+          final bMaxDelivery = bData['maxDeliveryDate'] as Timestamp?;
+          if (aEntregado && bEntregado) {
+            if (aMaxDelivery == null && bMaxDelivery == null) return 0;
+            if (aMaxDelivery == null) return 1;
+            if (bMaxDelivery == null) return -1;
+            return bMaxDelivery.compareTo(aMaxDelivery);
+          }
+          if (aMaxDelivery == null && bMaxDelivery == null) return 0;
+          if (aMaxDelivery == null) return 1;
+          if (bMaxDelivery == null) return -1;
+          return aMaxDelivery.compareTo(bMaxDelivery);
+        }
         case 'fecha_desc':
         default:
           if (aCreatedAt == null && bCreatedAt == null) return 0;
@@ -127,16 +148,20 @@ class _HomeClientPageState extends State<HomeClientPage>
         return 'Acabados';
       case 5:
         return 'Empacado';
+      case 6:
+        return 'Entregado';
       default:
         return 'Desconocido';
     }
   }
 
   void _mostrarModalConfirmarSalir() {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      builder: (modalContext) => Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.only(
@@ -164,17 +189,17 @@ class _HomeClientPageState extends State<HomeClientPage>
               children: [
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(context);
+                    Navigator.pop(modalContext);
                   },
                   style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(modalContext).colorScheme.primary,
                   ),
                   child: Text('Cancelar'),
                 ),
                 SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: () async {
-                    Navigator.pop(context);
+                    Navigator.pop(modalContext);
                     try {
                       final uid = _auth.currentUser?.uid;
                       if (uid != null) {
@@ -182,18 +207,16 @@ class _HomeClientPageState extends State<HomeClientPage>
                       }
                       await _auth.signOut();
                       if (mounted) {
-                        Navigator.pushAndRemoveUntil(
-                          context,
+                        navigator.pushAndRemoveUntil(
                           MaterialPageRoute(
-                            builder: (context) =>
-                                const LoginPage(title: 'Login'),
+                            builder: (_) => const LoginPage(title: 'Login'),
                           ),
                           (route) => false,
                         );
                       }
                     } catch (e) {
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        scaffoldMessenger.showSnackBar(
                           SnackBar(
                             content: Text('Error al cerrar sesión: $e'),
                             backgroundColor: Colors.red,
@@ -279,14 +302,18 @@ class _HomeClientPageState extends State<HomeClientPage>
 
   void _abrirModalCodigoPedido() {
     final TextEditingController codigoController = TextEditingController();
-    bool _isLoading = false;
+    bool isLoading = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => Container(
+        builder: (context, setState) => PopScope(
+          canPop: !isLoading,
+          child: Container(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
@@ -316,7 +343,7 @@ class _HomeClientPageState extends State<HomeClientPage>
                   controller: codigoController,
                   keyboardType: TextInputType.number,
                   maxLength: 8,
-                  enabled: !_isLoading,
+                  enabled: !isLoading,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: (value) {
                     setState(
@@ -330,14 +357,25 @@ class _HomeClientPageState extends State<HomeClientPage>
                   ),
                 ),
                 SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (_isLoading || codigoController.text.length != 8)
+                Row(
+                  children: [
+                    if (!isLoading)
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              Theme.of(context).colorScheme.primary,
+                        ),
+                        child: const Text('Cancelar'),
+                      ),
+                    if (!isLoading) const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: (isLoading || codigoController.text.length != 8)
                         ? null
                         : () async {
                             setState(() {
-                              _isLoading = true;
+                              isLoading = true;
                             });
 
                             try {
@@ -490,7 +528,7 @@ class _HomeClientPageState extends State<HomeClientPage>
                             } finally {
                               if (context.mounted) {
                                 setState(() {
-                                  _isLoading = false;
+                                  isLoading = false;
                                 });
                               }
                             }
@@ -500,7 +538,7 @@ class _HomeClientPageState extends State<HomeClientPage>
                       foregroundColor: Colors.white,
                       padding: EdgeInsets.symmetric(vertical: 16),
                     ),
-                    child: _isLoading
+                    child: isLoading
                         ? SizedBox(
                             height: 20,
                             width: 20,
@@ -512,16 +550,20 @@ class _HomeClientPageState extends State<HomeClientPage>
                             ),
                           )
                         : Text('Confirmar'),
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
+  @override
   Widget build(BuildContext context) {
     final User? currentUser = _auth.currentUser;
     final String userInfo = currentUser != null && currentUser.email != null
@@ -736,7 +778,15 @@ class _HomeClientPageState extends State<HomeClientPage>
 
                   var pedidos = snapshot.data!.docs.toList();
 
-                  if (_filtroEstado != 0) {
+                  if (_filtroEstado == 7) {
+                    pedidos = pedidos
+                        .where(
+                          (doc) =>
+                              (doc.data() as Map<String, dynamic>)['state'] !=
+                              6,
+                        )
+                        .toList();
+                  } else if (_filtroEstado != 0) {
                     pedidos = pedidos
                         .where(
                           (doc) =>
@@ -783,11 +833,16 @@ class _HomeClientPageState extends State<HomeClientPage>
                       final title =
                           pedidoData['title'] as String? ?? 'Sin título';
                       final state = pedidoData['state'] as int? ?? 0;
+                      final maxDeliveryTs =
+                          pedidoData['maxDeliveryDate'] as Timestamp?;
+                      final fechaMaxEntrega =
+                          maxDeliveryTs?.toDate();
 
                       return OrderItem(
                         numeroPedido: 'Pedido Nº $orderCode',
                         titulo: title,
                         estado: _obtenerEstadoTexto(state),
+                        fechaMaxEntrega: fechaMaxEntrega,
                         onTap: () {
                           Navigator.push(
                             context,

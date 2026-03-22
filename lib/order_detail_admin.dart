@@ -120,6 +120,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   late String _estadoActual;
   String? _orderId;
+  Timestamp? _maxDeliveryDate;
   bool _cargandoPedido = true;
 
   @override
@@ -135,6 +136,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
     'Confección',
     'Acabados',
     'Empacado',
+    'Entregado',
   ];
 
   String _extraerOrderCode(String numeroPedido) {
@@ -169,6 +171,12 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
     return '$day/$month/$year - $hour:$minute$amPm';
   }
 
+  String _formatearFechaCorta(Timestamp? timestamp) {
+    if (timestamp == null) return 'No disponible';
+    final date = timestamp.toDate();
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
   Future<void> _cargarPedido() async {
     final orderCode = _extraerOrderCode(widget.numeroPedido);
 
@@ -192,10 +200,12 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
       final pedidoDoc = pedidoQuery.docs.first;
       final pedidoData = pedidoDoc.data();
       final state = pedidoData['state'] as int?;
+      final maxDeliveryDate = pedidoData['maxDeliveryDate'] as Timestamp?;
 
       setState(() {
         _orderId = pedidoDoc.id;
         _estadoActual = _estadoDesdeCodigo(state);
+        _maxDeliveryDate = maxDeliveryDate;
         _cargandoPedido = false;
       });
     } catch (_) {
@@ -415,36 +425,61 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: InkWell(
-              onTap: _mostrarBottomSheetEstados,
-              borderRadius: BorderRadius.circular(999),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: chipBg,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: _mostrarBottomSheetEstados,
                   borderRadius: BorderRadius.circular(999),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: chipBg,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(chipIcon, size: 20, color: chipFg),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _estadoActual,
+                            style: textTheme.titleSmall?.copyWith(
+                              color: chipFg,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        Icon(Icons.arrow_drop_down, color: chipFg),
+                      ],
+                    ),
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(chipIcon, size: 20, color: chipFg),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _estadoActual,
-                        style: textTheme.titleSmall?.copyWith(
-                          color: chipFg,
-                          fontWeight: FontWeight.w600,
+                const SizedBox(height: 8),
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.event_rounded,
+                        size: 18,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Fecha máxima de entrega: ${_formatearFechaCorta(_maxDeliveryDate)}',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
                         ),
                       ),
-                    ),
-                    Icon(Icons.arrow_drop_down, color: chipFg),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
           Expanded(

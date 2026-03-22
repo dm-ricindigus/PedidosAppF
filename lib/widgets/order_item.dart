@@ -41,6 +41,13 @@ import 'package:flutter/material.dart';
       Icons.inventory_2_rounded,
     );
   }
+  if (e.contains('entregado')) {
+    return (
+      const Color(0xFFE8DAEF),
+      const Color(0xFF6C3483),
+      Icons.local_shipping_rounded,
+    );
+  }
   return (
     colorScheme.surfaceContainerHighest,
     colorScheme.onSurfaceVariant,
@@ -52,6 +59,7 @@ class OrderItem extends StatelessWidget {
   final String numeroPedido;
   final String titulo;
   final String estado;
+  final DateTime? fechaMaxEntrega;
   final VoidCallback? onTap;
 
   const OrderItem({
@@ -59,8 +67,13 @@ class OrderItem extends StatelessWidget {
     required this.numeroPedido,
     required this.titulo,
     required this.estado,
+    this.fechaMaxEntrega,
     this.onTap,
   });
+
+  String _formatearFecha(DateTime d) {
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  }
 
   (Color, Color, IconData) _estadoVisual(ColorScheme colorScheme) {
     return obtenerEstiloEstado(estado, colorScheme);
@@ -99,6 +112,15 @@ class OrderItem extends StatelessWidget {
                     context,
                   ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
+                if (fechaMaxEntrega != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Entrega máx: ${_formatearFecha(fechaMaxEntrega!)}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,

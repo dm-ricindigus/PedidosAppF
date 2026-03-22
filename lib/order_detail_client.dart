@@ -169,6 +169,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         return 'Acabados';
       case 5:
         return 'Empacado';
+      case 6:
+        return 'Entregado';
       default:
         return 'Desconocido';
     }
