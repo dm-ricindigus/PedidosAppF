@@ -1,108 +1,12 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:material_symbols_icons/symbols.dart';
-import 'package:pedidosapp/edit_order_client.dart';
-import 'package:pedidosapp/message_detail_client.dart';
-
-class HistorialItem extends StatelessWidget {
-  final String fecha;
-  final String descripcion;
-  final int cantidadArchivos;
-  final List<String> nombresArchivos;
-  final String numeroPedido;
-  final String estado;
-
-  const HistorialItem({
-    super.key,
-    required this.fecha,
-    required this.descripcion,
-    this.cantidadArchivos = 0,
-    this.nombresArchivos = const [],
-    required this.numeroPedido,
-    required this.estado,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => MessageDetailClientPage(
-              fecha: fecha,
-              descripcion: descripcion,
-              cantidadArchivos: cantidadArchivos,
-              nombresArchivos: nombresArchivos,
-              numeroPedido: numeroPedido,
-              estado: estado,
-            ),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Card(
-          elevation: 0,
-          margin: EdgeInsets.zero,
-          color: Theme.of(context).scaffoldBackgroundColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  fecha,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  descripcion,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(
-                      cantidadArchivos == 0
-                          ? Symbols.attach_file_off
-                          : Symbols.attach_file,
-                      size: 16,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      cantidadArchivos == 0
-                          ? 'Sin archivos adjuntos'
-                          : cantidadArchivos == 1
-                          ? '1 archivo adjunto'
-                          : '$cantidadArchivos archivos adjuntos',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+import 'package:pedidosapp/data/field_keys.dart';
+import 'package:pedidosapp/data/repositories/orders_repository.dart';
+import 'package:pedidosapp/features/client/edit_order_client.dart';
+import 'package:pedidosapp/features/client/message_detail_client.dart';
+import 'package:pedidosapp/shared/widgets/order_message_history_card.dart';
 
 class OrderDetailPage extends StatefulWidget {
   final String numeroPedido;
@@ -119,7 +23,7 @@ class OrderDetailPage extends StatefulWidget {
 }
 
 class _OrderDetailPageState extends State<OrderDetailPage> {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final OrdersRepository _ordersRepo = OrdersRepository();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? _orderId;
   String _estadoPedido = 'Estado no disponible';
@@ -137,23 +41,26 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
     if (user == null) return;
 
     try {
-      final pedidoQuery = await _firestore
-          .collection('orders')
-          .where('orderCode', isEqualTo: orderCode)
-          .where('clientId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
+      final pedidoQuery = await _ordersRepo.ordersByCodeAndClient(
+        orderCode: orderCode,
+        clientId: user.uid,
+      );
 
       if (pedidoQuery.docs.isNotEmpty) {
         final pedidoData = pedidoQuery.docs.first.data();
-        final estado = pedidoData['state'] as int? ?? 0;
+        final estado = pedidoData[FirestoreFields.state] as int? ?? 0;
         setState(() {
           _orderId = pedidoQuery.docs.first.id;
           _estadoPedido = _obtenerEstadoTexto(estado);
         });
       }
-    } catch (e) {
-      print('Error al obtener orderId: $e');
+    } catch (e, st) {
+      developer.log(
+        'Error al obtener orderId: $e',
+        name: 'OrderDetailClient',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -251,11 +158,7 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
               child: _orderId == null
                   ? const Center(child: CircularProgressIndicator())
                   : StreamBuilder<QuerySnapshot>(
-                      stream: _firestore
-                          .collection('messages')
-                          .where('orderId', isEqualTo: _orderId)
-                          .orderBy('createdAt', descending: true)
-                          .snapshots(),
+                      stream: _ordersRepo.watchMessagesForOrder(_orderId!),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
@@ -294,23 +197,33 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           itemBuilder: (context, index) {
                             final data =
                                 mensajes[index].data() as Map<String, dynamic>;
-                            final message = data['message'] as String? ?? '';
-                            final createdAt = data['createdAt'] as Timestamp?;
+                            final message =
+                                data[FirestoreFields.message] as String? ?? '';
+                            final createdAt =
+                                data[FirestoreFields.createdAt] as Timestamp?;
                             final List<dynamic> attachmentsRaw =
-                                (data['attachments'] as List<dynamic>?) ?? [];
+                                (data[FirestoreFields.attachments]
+                                        as List<dynamic>?) ??
+                                    [];
                             final List<String> nombresArchivos = attachmentsRaw
                                 .whereType<Map<String, dynamic>>()
-                                .map((a) => a['name'] as String?)
+                                .map((a) => a[AttachmentField.name] as String?)
                                 .whereType<String>()
                                 .toList();
 
-                            return HistorialItem(
-                              fecha: _formatearFecha(createdAt),
-                              descripcion: message,
-                              cantidadArchivos: nombresArchivos.length,
-                              nombresArchivos: nombresArchivos,
-                              numeroPedido: widget.numeroPedido,
-                              estado: _estadoPedido,
+                            final fecha = _formatearFecha(createdAt);
+                            return OrderMessageHistoryCard(
+                              timestampLine: fecha,
+                              bodyPreview: message,
+                              attachmentCount: nombresArchivos.length,
+                              onTap: () {
+                                showClientMessageDetailBottomSheet(
+                                  context,
+                                  fecha: fecha,
+                                  descripcion: message,
+                                  nombresArchivos: nombresArchivos,
+                                );
+                              },
                             );
                           },
                         );

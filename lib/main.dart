@@ -1,13 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pedidosapp/firebase_options.dart';
-import 'package:pedidosapp/home_admin.dart';
-import 'package:pedidosapp/home_client.dart';
-import 'package:pedidosapp/login.dart';
+import 'package:pedidosapp/features/admin/home_admin.dart';
+import 'package:pedidosapp/features/client/home_client.dart';
+import 'package:pedidosapp/data/repositories/auth_repository.dart';
+import 'package:pedidosapp/features/auth/login.dart';
 import 'package:pedidosapp/services/fcm_service.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -64,6 +63,8 @@ class SplashPage extends StatefulWidget {
 }
 
 class _SplashPageState extends State<SplashPage> {
+  final AuthRepository _authRepository = AuthRepository();
+
   @override
   void initState() {
     super.initState();
@@ -74,15 +75,11 @@ class _SplashPageState extends State<SplashPage> {
     await Future<void>.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = _authRepository.currentUser;
 
     if (user != null) {
       try {
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
-        final role = userDoc.data()?['role'] as String? ?? 'client';
+        final role = await _authRepository.getRoleForUid(user.uid);
         if (!mounted) return;
         if (role == 'admin') {
           Navigator.of(context).pushReplacement(

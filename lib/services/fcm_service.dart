@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pedidosapp/data/field_keys.dart';
+import 'package:pedidosapp/data/firestore_collections.dart';
 
 /// Servicio para gestionar notificaciones push (FCM).
 /// Guarda el token en Firestore para que la Cloud Function pueda enviar
@@ -34,9 +36,9 @@ class FcmService {
       debugPrint('[FCM] Token obtenido (${token.length} chars)');
 
       // Guardar en Firestore: fcmTokens/{uid}
-      await _firestore.collection('fcmTokens').doc(uid).set({
-        'token': token,
-        'updatedAt': FieldValue.serverTimestamp(),
+      await _firestore.collection(FirestoreCollections.fcmTokens).doc(uid).set({
+        FirestoreFields.token: token,
+        FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
       debugPrint('[FCM] Token guardado en Firestore para uid: $uid');
@@ -44,10 +46,13 @@ class FcmService {
       // Escuchar cambios del token (se regenera periódicamente)
       _messaging.onTokenRefresh.listen((newToken) async {
         if (newToken.isNotEmpty) {
-          await _firestore.collection('fcmTokens').doc(uid).set({
-            'token': newToken,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          await _firestore
+              .collection(FirestoreCollections.fcmTokens)
+              .doc(uid)
+              .set({
+                FirestoreFields.token: newToken,
+                FirestoreFields.updatedAt: FieldValue.serverTimestamp(),
+              }, SetOptions(merge: true));
         }
       });
     } catch (e, st) {
@@ -60,7 +65,7 @@ class FcmService {
   /// Así el dispositivo deja de recibir notificaciones de ese cliente.
   static Future<void> removeToken(String uid) async {
     try {
-      await _firestore.collection('fcmTokens').doc(uid).delete();
+      await _firestore.collection(FirestoreCollections.fcmTokens).doc(uid).delete();
       debugPrint('[FCM] Token eliminado para uid: $uid');
     } catch (e, st) {
       debugPrint('[FCM] Error al eliminar token: $e');
@@ -84,7 +89,8 @@ class FcmService {
   /// Debe llamarse una sola vez al inicio de la app (main).
   static void setupNotificationTapHandler(Function(String? orderCode) onTap) {
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      final orderCode = message.data['orderCode'] as String?;
+      final orderCode =
+          message.data[FirestoreFields.orderCode] as String?;
       onTap(orderCode);
     });
   }

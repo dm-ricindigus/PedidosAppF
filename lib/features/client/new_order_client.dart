@@ -1,159 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pedidosapp/data/field_keys.dart';
+import 'package:pedidosapp/data/repositories/orders_repository.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:developer' as developer;
 
-import 'package:material_symbols_icons/material_symbols_icons.dart';
-
-class DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double borderRadius;
-
-  DashedBorderPainter({
-    this.color = Colors.grey,
-    this.strokeWidth = 1.0,
-    this.borderRadius = 12.0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    const dashWidth = 5.0;
-    const dashSpace = 3.0;
-
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Radius.circular(borderRadius),
-    );
-    final path = Path()..addRRect(rrect);
-
-    for (final metric in path.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final extractPath = metric.extractPath(
-          distance,
-          (distance + dashWidth).clamp(0, metric.length),
-        );
-        canvas.drawPath(extractPath, paint);
-        distance += dashWidth + dashSpace;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
-
-enum EstadoAdjunto { pending, uploading, uploaded, failed }
-
-class ArchivoAdjunto {
-  final PlatformFile file;
-  EstadoAdjunto estado;
-  String? urlDescarga;
-  String? rutaStorage;
-  String? error;
-
-  ArchivoAdjunto({
-    required this.file,
-    this.estado = EstadoAdjunto.pending,
-    this.urlDescarga,
-    this.rutaStorage,
-    this.error,
-  });
-}
-
-class FileItemWidget extends StatelessWidget {
-  final String fileName;
-  final VoidCallback? onDelete;
-
-  const FileItemWidget({
-    super.key,
-    required this.fileName,
-    required this.onDelete,
-  });
-
-  String _acortarEnMedio(String text, int maxLength) {
-    if (text.length <= maxLength) return text;
-    if (maxLength <= 3) return text.substring(0, maxLength);
-
-    final int charsDisponibles = maxLength - 3;
-    final int inicio = (charsDisponibles / 2).ceil();
-    final int fin = charsDisponibles - inicio;
-    return '${text.substring(0, inicio)}...${text.substring(text.length - fin)}';
-  }
-
-  String _nombreArchivoCorto(String original, {int maxLength = 32}) {
-    if (original.length <= maxLength) return original;
-
-    final int dotIndex = original.lastIndexOf('.');
-    if (dotIndex <= 0 || dotIndex == original.length - 1) {
-      return _acortarEnMedio(original, maxLength);
-    }
-
-    final String base = original.substring(0, dotIndex);
-    final String extension = original.substring(dotIndex);
-
-    final int maxBaseLength = maxLength - extension.length;
-    if (maxBaseLength <= 3) {
-      return _acortarEnMedio(original, maxLength);
-    }
-
-    return '${_acortarEnMedio(base, maxBaseLength)}$extension';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final nombreVisible = _nombreArchivoCorto(fileName);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    nombreVisible,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-                    maxLines: 1,
-                    overflow: TextOverflow.clip,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: onDelete,
-            icon: Icon(
-              Icons.delete_outline,
-              color: onDelete == null ? Colors.grey[400] : Colors.grey[700],
-            ),
-            iconSize: 24,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-}
+import 'package:pedidosapp/features/client/widgets/client_order_form_widgets.dart';
 
 class NewOrderPage extends StatefulWidget {
   final String numeroPedido;
@@ -169,7 +23,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
   final TextEditingController _tituloController = TextEditingController();
   final TextEditingController _descripcionController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final OrdersRepository _ordersRepo = OrdersRepository();
   final FirebaseStorage _storage = FirebaseStorage.instance;
   bool _isLoading = false;
   bool _isLoadingSheetOpen = false;
@@ -223,12 +77,12 @@ class _NewOrderPageState extends State<NewOrderPage> {
   }
 
   String _obtenerDraftOrderId() {
-    _draftOrderId ??= _firestore.collection('orders').doc().id;
+    _draftOrderId ??= _ordersRepo.newOrderId();
     return _draftOrderId!;
   }
 
   String _obtenerDraftMessageId() {
-    _draftMessageId ??= _firestore.collection('messages').doc().id;
+    _draftMessageId ??= _ordersRepo.newMessageId();
     return _draftMessageId!;
   }
 
@@ -240,70 +94,12 @@ class _NewOrderPageState extends State<NewOrderPage> {
   }
 
   void _mostrarExitoBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_outline,
-                    color: Colors.green,
-                    size: 28,
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Pedido guardado',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Tu pedido ha sido guardado exitosamente',
-                style: TextStyle(fontSize: 16),
-              ),
-              SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: Text('Entendido'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    showOrderFormSuccessSheet(
+      context,
+      title: 'Pedido guardado',
+      subtitle: 'Tu pedido ha sido guardado exitosamente',
+      icon: Icons.check_circle_outline,
+      iconColor: Colors.green,
     );
   }
 
@@ -311,41 +107,9 @@ class _NewOrderPageState extends State<NewOrderPage> {
     if (!mounted || _isLoadingSheetOpen) return;
     _isLoadingSheetOpen = true;
 
-    showModalBottomSheet<void>(
-      context: context,
-      useRootNavigator: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => PopScope(
-        canPop: false,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(20),
-            ),
-          ),
-          padding: const EdgeInsets.all(24),
-          child: const Row(
-            children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2.5),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  'Enviando pedido, por favor espera...',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    showOrderFormProgressSheet(
+      context,
+      message: 'Enviando pedido, por favor espera...',
     ).whenComplete(() {
       _isLoadingSheetOpen = false;
     });
@@ -380,8 +144,8 @@ class _NewOrderPageState extends State<NewOrderPage> {
       final String orderCode = widget.numeroPedido;
       final String orderId = _obtenerDraftOrderId();
       final String messageId = _obtenerDraftMessageId();
-      final orderRef = _firestore.collection('orders').doc(orderId);
-      final messageRef = _firestore.collection('messages').doc(messageId);
+      final orderRef = _ordersRepo.orderRef(orderId);
+      final messageRef = _ordersRepo.messageRef(messageId);
 
       await _subirAdjuntos(
         orderId: orderRef.id,
@@ -406,12 +170,14 @@ class _NewOrderPageState extends State<NewOrderPage> {
 
       // Crear el documento del pedido
       await orderRef.set({
-        'orderCode': orderCode,
-        'title': titulo,
-        'state': 1, // Estado 1: Ingresado
-        'clientId': user.uid,
-        'maxDeliveryDate': Timestamp.fromDate(_fechaMaxEntrega!),
-        'createdAt': FieldValue.serverTimestamp(),
+        FirestoreFields.orderCode: orderCode,
+        FirestoreFields.title: titulo,
+        FirestoreFields.state: 1, // Estado 1: Ingresado
+        FirestoreFields.clientId: user.uid,
+        FirestoreFields.clientEmail:
+            (user.email ?? '').trim().toLowerCase(),
+        FirestoreFields.maxDeliveryDate: Timestamp.fromDate(_fechaMaxEntrega!),
+        FirestoreFields.createdAt: FieldValue.serverTimestamp(),
       });
 
       developer.log(
@@ -421,22 +187,22 @@ class _NewOrderPageState extends State<NewOrderPage> {
 
       // Crear el primer mensaje asociado al pedido
       await messageRef.set({
-        'orderId': orderRef.id,
-        'message': descripcion,
-        'userId': user.uid,
-        'attachments': _archivos
+        FirestoreFields.orderId: orderRef.id,
+        FirestoreFields.message: descripcion,
+        FirestoreFields.userId: user.uid,
+        FirestoreFields.attachments: _archivos
             .where((a) => a.estado == EstadoAdjunto.uploaded)
             .map(
               (a) => {
-                'name': a.file.name,
-                'size': a.file.size,
-                'extension': a.file.extension,
-                'url': a.urlDescarga,
-                'storagePath': a.rutaStorage,
+                AttachmentField.name: a.file.name,
+                AttachmentField.size: a.file.size,
+                AttachmentField.extension: a.file.extension,
+                AttachmentField.url: a.urlDescarga,
+                AttachmentField.storagePath: a.rutaStorage,
               },
             )
             .toList(),
-        'createdAt': FieldValue.serverTimestamp(),
+        FirestoreFields.createdAt: FieldValue.serverTimestamp(),
       });
 
       developer.log(
@@ -445,11 +211,10 @@ class _NewOrderPageState extends State<NewOrderPage> {
       );
 
       // Marcar el código como usado en orderCodes
-      await _firestore.collection('orderCodes').doc(orderCode).update({
-        'used': true,
-        'usedAt': FieldValue.serverTimestamp(),
-        'usedBy': user.uid,
-      });
+      await _ordersRepo.markOrderCodeUsed(
+        orderCode: orderCode,
+        usedByUid: user.uid,
+      );
 
       developer.log(
         '✅ Código marcado como usado: $orderCode',
@@ -749,47 +514,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: _archivos.isEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12.0),
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: CustomPaint(
-                                painter: DashedBorderPainter(
-                                  color: Colors.grey.shade400,
-                                  strokeWidth: 1.0,
-                                  borderRadius: 12.0,
-                                ),
-                              ),
-                            ),
-                            Positioned.fill(
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Center(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Symbols.attach_file_off,
-                                        size: 32,
-                                        color: Colors.grey[400],
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        'No hay archivos adjuntos',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.copyWith(color: Colors.grey[600]),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
+                    ? const OrderAttachmentsEmptyPlaceholder()
                     : SingleChildScrollView(
                         padding: EdgeInsets.zero,
                         child: Column(
@@ -797,8 +522,9 @@ class _NewOrderPageState extends State<NewOrderPage> {
                           children: [
                             ..._archivos.asMap().entries.map((entry) {
                               final archivo = entry.value;
-                              return FileItemWidget(
+                              return OrderAttachmentFileRow(
                                 fileName: archivo.file.name,
+                                iconSize: 24,
                                 onDelete: _isLoading
                                     ? null
                                     : () => _eliminarArchivo(entry.key),

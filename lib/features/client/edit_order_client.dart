@@ -2,141 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:pedidosapp/data/field_keys.dart';
+import 'package:pedidosapp/data/repositories/orders_repository.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:material_symbols_icons/material_symbols_icons.dart';
 import 'dart:developer' as developer;
 
-class DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double borderRadius;
-
-  DashedBorderPainter({
-    this.color = Colors.grey,
-    this.strokeWidth = 1.0,
-    this.borderRadius = 12.0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    const dashWidth = 5.0;
-    const dashSpace = 3.0;
-
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Radius.circular(borderRadius),
-    );
-    final path = Path()..addRRect(rrect);
-
-    for (final metric in path.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final extractPath = metric.extractPath(
-          distance,
-          (distance + dashWidth).clamp(0, metric.length),
-        );
-        canvas.drawPath(extractPath, paint);
-        distance += dashWidth + dashSpace;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
-}
-
-enum EstadoAdjunto { pending, uploading, uploaded, failed }
-
-class ArchivoAdjunto {
-  final PlatformFile file;
-  EstadoAdjunto estado;
-  String? urlDescarga;
-  String? rutaStorage;
-  String? error;
-
-  ArchivoAdjunto({
-    required this.file,
-    this.estado = EstadoAdjunto.pending,
-    this.urlDescarga,
-    this.rutaStorage,
-    this.error,
-  });
-}
-
-class FileItemWidget extends StatelessWidget {
-  final String fileName;
-  final VoidCallback? onDelete;
-
-  const FileItemWidget({
-    super.key,
-    required this.fileName,
-    required this.onDelete,
-  });
-
-  String _acortarEnMedio(String text, int maxLength) {
-    if (text.length <= maxLength) return text;
-    if (maxLength <= 3) return text.substring(0, maxLength);
-    final int charsDisponibles = maxLength - 3;
-    final int inicio = (charsDisponibles / 2).ceil();
-    final int fin = charsDisponibles - inicio;
-    return '${text.substring(0, inicio)}...${text.substring(text.length - fin)}';
-  }
-
-  String _nombreArchivoCorto(String original, {int maxLength = 32}) {
-    if (original.length <= maxLength) return original;
-    final dotIndex = original.lastIndexOf('.');
-    if (dotIndex <= 0 || dotIndex == original.length - 1) {
-      return _acortarEnMedio(original, maxLength);
-    }
-    final String base = original.substring(0, dotIndex);
-    final String extension = original.substring(dotIndex);
-    final int maxBaseLength = maxLength - extension.length;
-    if (maxBaseLength <= 3) return _acortarEnMedio(original, maxLength);
-    return '${_acortarEnMedio(base, maxBaseLength)}$extension';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final nombreVisible = _nombreArchivoCorto(fileName);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Text(
-              nombreVisible,
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          IconButton(
-            onPressed: onDelete,
-            icon: Icon(
-              Icons.delete_outline,
-              color: onDelete == null ? Colors.grey[400] : Colors.grey[700],
-            ),
-            iconSize: 18,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-        ],
-      ),
-    );
-  }
-}
+import 'package:pedidosapp/features/client/widgets/client_order_form_widgets.dart';
 
 class EditOrderClientPage extends StatefulWidget {
   final String numeroPedido;
@@ -158,7 +29,7 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
   final List<ArchivoAdjunto> _archivos = [];
   final TextEditingController _descripcionController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final OrdersRepository _ordersRepo = OrdersRepository();
   final FirebaseStorage _storage = FirebaseStorage.instance;
   static const int _maxCaracteresDescripcion = 500;
   static const int _maxTamanoArchivoBytes = 6 * 1024 * 1024;
@@ -181,72 +52,10 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
   }
 
   void _mostrarExitoBottomSheet(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-        ),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_outline_rounded,
-                    color: colorScheme.primary,
-                    size: 28,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Mensaje enviado',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Tu mensaje ha sido enviado exitosamente',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-              SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: const Text('Entendido'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    showOrderFormSuccessSheet(
+      context,
+      title: 'Mensaje enviado',
+      subtitle: 'Tu mensaje ha sido enviado exitosamente',
     );
   }
 
@@ -254,53 +63,9 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
     if (!mounted || _isLoadingSheetOpen) return;
     _isLoadingSheetOpen = true;
 
-    showModalBottomSheet<void>(
-      context: context,
-      useRootNavigator: true,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => PopScope(
-        canPop: false,
-        child: Builder(
-          builder: (context) {
-            final colorScheme = Theme.of(context).colorScheme;
-            return Container(
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
-                ),
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        colorScheme.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'Enviando mensaje, por favor espera...',
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
+    showOrderFormProgressSheet(
+      context,
+      message: 'Enviando mensaje, por favor espera...',
     ).whenComplete(() {
       _isLoadingSheetOpen = false;
     });
@@ -312,7 +77,7 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
   }
 
   String _obtenerDraftMessageId() {
-    _draftMessageId ??= _firestore.collection('messages').doc().id;
+    _draftMessageId ??= _ordersRepo.newMessageId();
     return _draftMessageId!;
   }
 
@@ -484,12 +249,10 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
       );
 
       // Obtener el orderId desde el orderCode
-      final pedidoQuery = await _firestore
-          .collection('orders')
-          .where('orderCode', isEqualTo: orderCode)
-          .where('clientId', isEqualTo: user.uid)
-          .limit(1)
-          .get();
+      final pedidoQuery = await _ordersRepo.ordersByCodeAndClient(
+        orderCode: orderCode,
+        clientId: user.uid,
+      );
 
       if (pedidoQuery.docs.isEmpty) {
         throw Exception('No se encontró el pedido con código: $orderCode');
@@ -497,7 +260,7 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
 
       final orderId = pedidoQuery.docs.first.id;
       final messageId = _obtenerDraftMessageId();
-      final messageRef = _firestore.collection('messages').doc(messageId);
+      final messageRef = _ordersRepo.messageRef(messageId);
 
       developer.log('✅ OrderId encontrado: $orderId', name: 'SaveMessage');
 
@@ -519,22 +282,22 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
 
       // Crear el nuevo mensaje asociado al pedido
       await messageRef.set({
-        'orderId': orderId,
-        'message': descripcion,
-        'userId': user.uid,
-        'attachments': _archivos
+        FirestoreFields.orderId: orderId,
+        FirestoreFields.message: descripcion,
+        FirestoreFields.userId: user.uid,
+        FirestoreFields.attachments: _archivos
             .where((a) => a.estado == EstadoAdjunto.uploaded)
             .map(
               (a) => {
-                'name': a.file.name,
-                'size': a.file.size,
-                'extension': a.file.extension,
-                'url': a.urlDescarga,
-                'storagePath': a.rutaStorage,
+                AttachmentField.name: a.file.name,
+                AttachmentField.size: a.file.size,
+                AttachmentField.extension: a.file.extension,
+                AttachmentField.url: a.urlDescarga,
+                AttachmentField.storagePath: a.rutaStorage,
               },
             )
             .toList(),
-        'createdAt': FieldValue.serverTimestamp(),
+        FirestoreFields.createdAt: FieldValue.serverTimestamp(),
       });
 
       developer.log(
@@ -783,49 +546,7 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
                   child: _archivos.isEmpty
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(12.0),
-                          child: Stack(
-                            children: [
-                              Positioned.fill(
-                                child: CustomPaint(
-                                  painter: DashedBorderPainter(
-                                    color: Colors.grey.shade400,
-                                    strokeWidth: 1.0,
-                                    borderRadius: 12.0,
-                                  ),
-                                ),
-                              ),
-                              Positioned.fill(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Center(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Symbols.attach_file_off,
-                                          size: 32,
-                                          color: Colors.grey[400],
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Text(
-                                          'No hay archivos adjuntos',
-                                          style: Theme.of(context)
-                                              .textTheme
-                                              .bodyMedium
-                                              ?.copyWith(
-                                                color: Colors.grey[600],
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
+                      ? const OrderAttachmentsEmptyPlaceholder()
                       : SingleChildScrollView(
                           padding: EdgeInsets.zero,
                           child: Column(
@@ -833,8 +554,9 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
                             children: [
                               ..._archivos.asMap().entries.map((entry) {
                                 final archivo = entry.value;
-                                return FileItemWidget(
+                                return OrderAttachmentFileRow(
                                   fileName: archivo.file.name,
+                                  iconSize: 18,
                                   onDelete: _isLoading
                                       ? null
                                       : () => _pedirConfirmarEliminarArchivo(
