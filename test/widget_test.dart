@@ -19,7 +19,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Camisetas.com'), findsOneWidget);
+    expect(find.bySemanticsLabel('The Shoes Magic'), findsOneWidget);
     expect(find.text('Correo electrónico'), findsOneWidget);
     expect(find.text('Contraseña'), findsOneWidget);
     expect(find.text('Ingresar'), findsOneWidget);

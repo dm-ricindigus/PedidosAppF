@@ -41,7 +41,7 @@ class PedidosApp extends StatelessWidget {
 
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'Pedidos App',
+      title: 'TSM App',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -105,16 +105,18 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
+    final maxWidth = MediaQuery.sizeOf(context).width - 48;
     return Scaffold(
       body: ColoredBox(
         color: Theme.of(context).colorScheme.primary,
-        child: const Center(
-          child: Text(
-            'Camisetas.com',
-            style: TextStyle(
-              fontSize: 34,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
+        child: Center(
+          child: SizedBox(
+            width: maxWidth,
+            child: Image.asset(
+              'assets/images/tsm_logo_white.png',
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              semanticLabel: 'The Shoes Magic',
             ),
           ),
         ),

@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 
-/// Título de marca en la pantalla de login.
+/// Marca en la pantalla de login (logo horizontal).
 class LoginBrandingTitle extends StatelessWidget {
   const LoginBrandingTitle({super.key});
 
+  static const String _logoAsset = 'assets/images/tsm_logo_color.png';
+
   @override
   Widget build(BuildContext context) {
-    return const Text(
-      'Camisetas.com',
-      style: TextStyle(
-        fontSize: 30,
-        fontWeight: FontWeight.bold,
+    final maxWidth = MediaQuery.sizeOf(context).width - 48;
+    return SizedBox(
+      width: maxWidth,
+      child: Image.asset(
+        _logoAsset,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        semanticLabel: 'The Shoes Magic',
       ),
     );
   }
