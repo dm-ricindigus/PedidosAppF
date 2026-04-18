@@ -136,12 +136,12 @@ class LoginSecondaryActions extends StatelessWidget {
   final VoidCallback onGoRegister;
 
   static ButtonStyle get _linkButtonStyle => ButtonStyle(
-        padding: WidgetStateProperty.all(EdgeInsets.zero),
-        minimumSize: WidgetStateProperty.all(Size.zero),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        splashFactory: NoSplash.splashFactory,
-        overlayColor: WidgetStateProperty.all(Colors.transparent),
-      );
+    padding: WidgetStateProperty.all(EdgeInsets.zero),
+    minimumSize: WidgetStateProperty.all(Size.zero),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    splashFactory: NoSplash.splashFactory,
+    overlayColor: WidgetStateProperty.all(Colors.transparent),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -250,7 +250,9 @@ class _LoginEmailVerificationSheetState
             Text(
               'Verifica tu correo',
               textAlign: TextAlign.center,
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -312,7 +314,9 @@ class RecoverPasswordEmailSentSheet extends StatelessWidget {
             Text(
               'Correo enviado',
               textAlign: TextAlign.center,
-              style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              style: textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -380,17 +384,17 @@ class RecoverPasswordFormContent extends StatelessWidget {
           Text(
             '¿Olvidaste tu contraseña?',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           Text(
             'Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+              color: colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 24),
           if (errorMessage != null) ...[

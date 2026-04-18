@@ -95,8 +95,14 @@ class _RegisterPageState extends State<RegisterPage> {
       } else if (e.code == 'operation-not-allowed') {
         errorMessage =
             'La autenticación por email/contraseña no está habilitada';
+      } else if (e.code == 'too-many-requests') {
+        errorMessage = 'Demasiados intentos. Inténtalo más tarde';
+      } else if (e.code == 'network-request-failed') {
+        errorMessage =
+            'Sin conexión. Comprueba tu red e intenta de nuevo.';
       } else {
-        errorMessage = 'Error: ${e.code}. ${e.message ?? ""}';
+        errorMessage =
+            'No se pudo crear la cuenta. Intenta de nuevo más tarde.';
       }
 
       if (mounted) {
@@ -110,7 +116,7 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     } catch (e) {
       // Si falló Firestore tras crear Auth, el usuario ya se eliminó arriba.
-      String errorMessage = 'Error al crear usuario';
+      String errorMessage = 'No se pudo crear la cuenta';
 
       if (e.toString().contains('PERMISSION_DENIED') ||
           e.toString().contains('permission')) {
@@ -120,7 +126,8 @@ class _RegisterPageState extends State<RegisterPage> {
         errorMessage =
             'Base de datos no encontrada. Verifica la configuración.';
       } else {
-        errorMessage = 'Error inesperado: $e';
+        errorMessage =
+            'Ocurrió un error inesperado. Intenta de nuevo.';
       }
 
       if (mounted) {

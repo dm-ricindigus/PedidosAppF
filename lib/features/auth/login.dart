@@ -62,9 +62,7 @@ class _LoginPageState extends State<LoginPage> {
     if (!mounted) return;
     await navigator.push<bool>(
       MaterialPageRoute(
-        builder: (context) => RecoverPasswordPage(
-          initialEmail: _emailController.text.trim(),
-        ),
+        builder: (context) => const RecoverPasswordPage(),
       ),
     );
     if (!mounted) return;
@@ -183,8 +181,14 @@ class _LoginPageState extends State<LoginPage> {
       } else if (e.code == 'operation-not-allowed') {
         errorMessage =
             'La autenticación por email/contraseña no está habilitada';
+      } else if (e.code == 'invalid-credential') {
+        errorMessage = 'Correo o contraseña incorrectos';
+      } else if (e.code == 'network-request-failed') {
+        errorMessage =
+            'Sin conexión. Comprueba tu red e intenta de nuevo.';
       } else {
-        errorMessage = 'Error: ${e.code}. ${e.message ?? ""}';
+        errorMessage =
+            'No se pudo iniciar sesión. Intenta de nuevo más tarde.';
       }
 
       if (mounted) {
@@ -199,10 +203,12 @@ class _LoginPageState extends State<LoginPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error inesperado: $e'),
+          const SnackBar(
+            content: Text(
+              'Ocurrió un error inesperado. Intenta de nuevo.',
+            ),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
+            duration: Duration(seconds: 5),
           ),
         );
       }
@@ -282,9 +288,7 @@ class _LoginPageState extends State<LoginPage> {
 }
 
 class RecoverPasswordPage extends StatefulWidget {
-  const RecoverPasswordPage({super.key, this.initialEmail = ''});
-
-  final String initialEmail;
+  const RecoverPasswordPage({super.key});
 
   @override
   State<RecoverPasswordPage> createState() => _RecoverPasswordPageState();
@@ -300,7 +304,7 @@ class _RecoverPasswordPageState extends State<RecoverPasswordPage> {
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController(text: widget.initialEmail);
+    _emailController = TextEditingController();
   }
 
   Future<void> _sendResetEmail() async {
@@ -330,6 +334,9 @@ class _RecoverPasswordPageState extends State<RecoverPasswordPage> {
         message = 'No existe una cuenta con este correo electrónico';
       } else if (e.code == 'too-many-requests') {
         message = 'Demasiados intentos. Inténtalo más tarde';
+      } else if (e.code == 'network-request-failed') {
+        message =
+            'Sin conexión. Comprueba tu red e intenta de nuevo.';
       }
 
       if (!mounted) {
@@ -343,7 +350,8 @@ class _RecoverPasswordPageState extends State<RecoverPasswordPage> {
         return;
       }
       setState(() {
-        _errorMessage = 'Error inesperado: $e';
+        _errorMessage =
+            'Ocurrió un error inesperado. Intenta de nuevo.';
       });
     } finally {
       if (mounted) {
