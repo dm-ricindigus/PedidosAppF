@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyDU4rNGfl4aQJ9eKvq-TkwWV2j4uBX2UQY</string>
+	<string>AIzaSyCzZcflUrfshAf0eEcV4P0WI2rxkzvZDXE</string>
 	<key>GCM_SENDER_ID</key>
-	<string>60224711452</string>
+	<string>978040200097</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.ricindigus.tsm.pedidosapp</string>
 	<key>PROJECT_ID</key>
-	<string>pedidosapp-5eb2c</string>
+	<string>pedidos-alkoto-prod</string>
 	<key>STORAGE_BUCKET</key>
-	<string>pedidosapp-5eb2c.firebasestorage.app</string>
+	<string>pedidos-alkoto-prod.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:60224711452:ios:3053f68031c789537b28d9</string>
+	<string>1:978040200097:ios:06a8260aa31d8962f749e0</string>
 </dict>
 </plist>

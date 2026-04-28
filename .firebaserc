@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "pedidosapp-5eb2c"
-  }
+    "default": "pedidosapp-5eb2c",
+    "prod": "pedidos-alkoto-prod"
+  },
+  "targets": {},
+  "etags": {}
 }

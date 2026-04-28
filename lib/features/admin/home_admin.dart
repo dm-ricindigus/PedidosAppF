@@ -50,9 +50,8 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
       _ordersRepo.getOrderCodeDoc(code).then((snap) {
         if (!mounted) return;
         final email = snap.exists
-            ? (snap.data()?[FirestoreFields.clientEmail] as String?)
-                    ?.trim() ??
-                ''
+            ? (snap.data()?[FirestoreFields.clientEmail] as String?)?.trim() ??
+                  ''
             : '';
         setState(() {
           _clientEmailFetchInFlight.remove(code);
@@ -293,10 +292,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
     );
   }
 
-  Future<void> _createOrderCode(
-    String email,
-    BuildContext sheetContext,
-  ) async {
+  Future<void> _createOrderCode(String email, BuildContext sheetContext) async {
     if (email.isEmpty) {
       if (sheetContext.mounted) {
         await showAdminErrorSheet(sheetContext, 'Por favor ingresa un correo');
@@ -339,7 +335,7 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
 
       final result = await callable.call({
         'clientEmail': email,
-        'authToken': idToken,
+        '_authToken': idToken,
       });
 
       developer.log('✅ Respuesta recibida: $result', name: 'CreateOrderCode');
@@ -433,12 +429,12 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
               selectedFilterId: _selectedFilterId,
               sortKey: _sortKey,
               filterLabel: orderListFilterLabel(_selectedFilterId),
-              sortLabel: _selectedFilterId ==
-                      kAdminOrderListFilterPendingClientEntry
+              sortLabel:
+                  _selectedFilterId == kAdminOrderListFilterPendingClientEntry
                   ? orderListSortLabel('fecha_desc')
                   : orderListSortLabel(_sortKey),
-              sortEnabled: _selectedFilterId !=
-                  kAdminOrderListFilterPendingClientEntry,
+              sortEnabled:
+                  _selectedFilterId != kAdminOrderListFilterPendingClientEntry,
               onFilterSelected: (value) =>
                   setState(() => _selectedFilterId = value),
               onSortSelected: (value) => setState(() {
@@ -450,7 +446,8 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
               accentColor: accentColor,
             ),
             Expanded(
-              child: _selectedFilterId == kAdminOrderListFilterPendingClientEntry
+              child:
+                  _selectedFilterId == kAdminOrderListFilterPendingClientEntry
                   ? _buildUnusedOrderCodesList(context)
                   : _buildOrdersList(context),
             ),

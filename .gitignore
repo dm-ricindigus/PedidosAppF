@@ -57,3 +57,6 @@ android/key.properties
 .env
 .env.*
 !.env.example
+
+# Backup Firebase dev (duplica credenciales del cliente; no versionar si prefieres)
+firebase_backup_dev/

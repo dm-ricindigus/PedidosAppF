@@ -50,19 +50,19 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBO1bu-bBnqzPy-pmdcQJhxeQ2K5Iv_ubY',
-    appId: '1:60224711452:android:357a53806ada26f37b28d9',
-    messagingSenderId: '60224711452',
-    projectId: 'pedidosapp-5eb2c',
-    storageBucket: 'pedidosapp-5eb2c.firebasestorage.app',
+    apiKey: 'AIzaSyBuU8zHJGzECBTTZUTLY-sdqxTzH0NgRWE',
+    appId: '1:978040200097:android:0e3ce63890bcd957f749e0',
+    messagingSenderId: '978040200097',
+    projectId: 'pedidos-alkoto-prod',
+    storageBucket: 'pedidos-alkoto-prod.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDU4rNGfl4aQJ9eKvq-TkwWV2j4uBX2UQY',
-    appId: '1:60224711452:ios:3053f68031c789537b28d9',
-    messagingSenderId: '60224711452',
-    projectId: 'pedidosapp-5eb2c',
-    storageBucket: 'pedidosapp-5eb2c.firebasestorage.app',
+    apiKey: 'AIzaSyCzZcflUrfshAf0eEcV4P0WI2rxkzvZDXE',
+    appId: '1:978040200097:ios:06a8260aa31d8962f749e0',
+    messagingSenderId: '978040200097',
+    projectId: 'pedidos-alkoto-prod',
+    storageBucket: 'pedidos-alkoto-prod.firebasestorage.app',
     iosBundleId: 'com.ricindigus.tsm.pedidosapp',
   );
 
