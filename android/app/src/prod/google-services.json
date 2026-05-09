@@ -23,6 +23,25 @@
           "other_platform_oauth_client": []
         }
       }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:978040200097:android:0f4afb4fa20e31d9f749e0",
+        "android_client_info": {
+          "package_name": "com.ricindigus.tsm.pedidosapp.prod"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBuU8zHJGzECBTTZUTLY-sdqxTzH0NgRWE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
     }
   ],
   "configuration_version": "1"

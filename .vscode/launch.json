@@ -1,28 +1,47 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "pedidosapp",
+            "name": "pedidosapp (android dev)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main_dev.dart",
+            "args": ["--flavor", "dev"]
+        },
+        {
+            "name": "pedidosapp (android prod)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "args": ["--flavor", "prod"]
+        },
+        {
+            "name": "pedidosapp (ios dev)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main_dev.dart"
+        },
+        {
+            "name": "pedidosapp (ios prod)",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart"
         },
         {
-            "name": "pedidosapp (profile mode)",
+            "name": "pedidosapp (android prod, profile)",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
-            "flutterMode": "profile"
+            "flutterMode": "profile",
+            "args": ["--flavor", "prod"]
         },
         {
-            "name": "pedidosapp (release mode)",
+            "name": "pedidosapp (android prod, release)",
             "request": "launch",
             "type": "dart",
             "program": "lib/main.dart",
-            "flutterMode": "release"
+            "flutterMode": "release",
+            "args": ["--flavor", "prod"]
         }
     ]
 }
