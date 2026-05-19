@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pedidosapp/core/no_emoji_text_input_formatter.dart';
 
 /// Bottom sheet: generated order code + copy.
 class AdminOrderCodeCreatedSheet extends StatelessWidget {
@@ -208,6 +209,7 @@ class _AdminCreateOrderCodeSheetState extends State<AdminCreateOrderCodeSheet> {
                   controller: _controller,
                   keyboardType: TextInputType.emailAddress,
                   enabled: !_loading,
+                  inputFormatters: const [NoEmojiTextInputFormatter()],
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.grey.shade200,

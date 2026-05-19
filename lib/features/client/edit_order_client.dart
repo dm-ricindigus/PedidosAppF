@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:developer' as developer;
 
 import 'package:pedidosapp/features/client/widgets/client_order_form_widgets.dart';
+import 'package:pedidosapp/core/no_emoji_text_input_formatter.dart';
 
 class EditOrderClientPage extends StatefulWidget {
   final String numeroPedido;
@@ -514,6 +515,7 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
                       maxLength: _maxCaracteresDescripcion,
                       maxLines: 4,
                       minLines: 4,
+                      inputFormatters: const [NoEmojiTextInputFormatter()],
                       buildCounter:
                           (
                             BuildContext context, {

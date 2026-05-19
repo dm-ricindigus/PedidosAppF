@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:developer' as developer;
 
 import 'package:pedidosapp/features/client/widgets/client_order_form_widgets.dart';
+import 'package:pedidosapp/core/no_emoji_text_input_formatter.dart';
 
 class NewOrderPage extends StatefulWidget {
   final String numeroPedido;
@@ -456,6 +457,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
                   TextField(
                     controller: _tituloController,
                     maxLength: _maxCaracteresTitulo,
+                    inputFormatters: const [NoEmojiTextInputFormatter()],
                     buildCounter:
                         (
                           BuildContext context, {
@@ -482,6 +484,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
                     maxLength: _maxCaracteresDescripcion,
                     maxLines: 4,
                     minLines: 4,
+                    inputFormatters: const [NoEmojiTextInputFormatter()],
                     buildCounter:
                         (
                           BuildContext context, {

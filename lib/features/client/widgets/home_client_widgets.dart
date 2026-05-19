@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pedidosapp/core/no_emoji_text_input_formatter.dart';
 
 /// Muestra error de validación (p. ej. código de pedido).
 Future<void> showClientValidationErrorSheet(
@@ -134,7 +135,10 @@ class _OrderCodePedidoSheetState extends State<OrderCodePedidoSheet> {
                   keyboardType: TextInputType.number,
                   maxLength: 8,
                   enabled: !_isLoading,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    const NoEmojiTextInputFormatter(),
+                  ],
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     filled: true,

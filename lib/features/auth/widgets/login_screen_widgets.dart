@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pedidosapp/core/no_emoji_text_input_formatter.dart';
 
 /// Marca en la pantalla de login (logo horizontal).
 class LoginBrandingTitle extends StatelessWidget {
@@ -63,6 +64,7 @@ class LoginCredentialsForm extends StatelessWidget {
             keyboardType: TextInputType.emailAddress,
             enabled: !isLoading,
             onChanged: (_) => onEmailEdited(),
+            inputFormatters: const [NoEmojiTextInputFormatter()],
             decoration: InputDecoration(
               labelText: 'Correo electrónico',
               hintText: 'ejemplo@correo.com',
@@ -77,6 +79,7 @@ class LoginCredentialsForm extends StatelessWidget {
             obscureText: obscurePassword,
             enabled: !isLoading,
             onChanged: (_) => onPasswordEdited(),
+            inputFormatters: const [NoEmojiTextInputFormatter()],
             decoration: InputDecoration(
               labelText: 'Contraseña',
               hintText: 'Ingresa tu contraseña',
@@ -415,6 +418,7 @@ class RecoverPasswordFormContent extends StatelessWidget {
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
             enabled: !isSending,
+            inputFormatters: const [NoEmojiTextInputFormatter()],
             decoration: const InputDecoration(
               labelText: 'Correo electrónico',
               hintText: 'ejemplo@correo.com',

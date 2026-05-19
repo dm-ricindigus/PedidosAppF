@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pedidosapp/core/no_emoji_text_input_formatter.dart';
 
 /// Sheet no descartable tras enviar el correo de verificación.
 Future<void> showRegisterEmailVerificationSheet(
@@ -120,6 +121,7 @@ class RegisterAccountForm extends StatelessWidget {
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
             enabled: !isLoading,
+            inputFormatters: const [NoEmojiTextInputFormatter()],
             decoration: const InputDecoration(
               labelText: 'Correo electrónico',
               hintText: 'ejemplo@correo.com',
@@ -141,6 +143,7 @@ class RegisterAccountForm extends StatelessWidget {
             controller: passwordController,
             obscureText: obscurePassword,
             enabled: !isLoading,
+            inputFormatters: const [NoEmojiTextInputFormatter()],
             decoration: InputDecoration(
               labelText: 'Contraseña',
               hintText: 'Mínimo 6 caracteres',
@@ -169,6 +172,7 @@ class RegisterAccountForm extends StatelessWidget {
             controller: confirmPasswordController,
             obscureText: obscureConfirmPassword,
             enabled: !isLoading,
+            inputFormatters: const [NoEmojiTextInputFormatter()],
             decoration: InputDecoration(
               labelText: 'Confirmar contraseña',
               hintText: 'Repite tu contraseña',
