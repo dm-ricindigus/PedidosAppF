@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:pedidosapp/features/admin/home_admin.dart';
 import 'package:pedidosapp/features/client/home_client.dart';
+import 'package:pedidosapp/data/repositories/app_config_repository.dart';
 import 'package:pedidosapp/data/repositories/auth_repository.dart';
 import 'package:pedidosapp/features/auth/login.dart';
+import 'package:pedidosapp/widgets/force_update_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -40,17 +44,48 @@ class SplashPage extends StatefulWidget {
 
 class _SplashPageState extends State<SplashPage> {
   final AuthRepository _authRepository = AuthRepository();
+  final AppConfigRepository _appConfigRepository = AppConfigRepository();
+  PackageInfo? _packageInfo;
+  ({ForceUpdatePolicy policy, Uri? storeUri})? _forceUpdate;
 
   @override
   void initState() {
     super.initState();
-    _goToLogin();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    final info = await PackageInfo.fromPlatform();
+    if (!mounted) return;
+    setState(() {
+      _packageInfo = info;
+      _forceUpdate = null;
+    });
+
+    final skipForceCheck = kDebugMode ||
+        kIsWeb ||
+        info.packageName.endsWith('.dev');
+
+    if (!skipForceCheck) {
+      final policy = await _appConfigRepository.fetchForceUpdatePolicy(
+        defaultTargetPlatform,
+      );
+      if (!mounted) return;
+      if (policy.requiresUpdate(info.version)) {
+        final storeUri = buildStoreUri(defaultTargetPlatform, policy);
+        setState(() {
+          _forceUpdate = (policy: policy, storeUri: storeUri);
+        });
+        return;
+      }
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 1400));
+    if (!mounted) return;
+    await _goToLogin();
   }
 
   Future<void> _goToLogin() async {
-    await Future<void>.delayed(const Duration(milliseconds: 1400));
-    if (!mounted) return;
-
     final user = _authRepository.currentUser;
 
     if (user != null) {
@@ -81,20 +116,53 @@ class _SplashPageState extends State<SplashPage> {
 
   @override
   Widget build(BuildContext context) {
+    final block = _forceUpdate;
+    if (block != null && _packageInfo != null) {
+      return ForceUpdateScreen(
+        policy: block.policy,
+        currentVersion: _packageInfo!.version,
+        storeUri: block.storeUri,
+        onRecheck: _bootstrap,
+      );
+    }
+
     final maxWidth = MediaQuery.sizeOf(context).width - 48;
+    final footerStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+      color: Colors.white.withValues(alpha: 0.88),
+      height: 1.35,
+    );
+
     return Scaffold(
       body: ColoredBox(
         color: Theme.of(context).colorScheme.primary,
-        child: Center(
-          child: SizedBox(
-            width: maxWidth,
-            child: Image.asset(
-              'assets/images/tsm_logo_white.png',
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-              semanticLabel: 'The Shoes Magic',
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Center(
+              child: SizedBox(
+                width: maxWidth,
+                child: Image.asset(
+                  'assets/images/tsm_logo_white.png',
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                  semanticLabel: 'The Shoes Magic',
+                ),
+              ),
             ),
-          ),
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 28,
+              child: _packageInfo == null
+                  ? const SizedBox.shrink()
+                  : Text(
+                      '${_packageInfo!.appName}\n'
+                      'v${_packageInfo!.version} (${_packageInfo!.buildNumber})',
+                      textAlign: TextAlign.center,
+                      style: footerStyle,
+                    ),
+            ),
+          ],
         ),
       ),
     );

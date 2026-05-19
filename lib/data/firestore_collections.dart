@@ -5,4 +5,6 @@ abstract final class FirestoreCollections {
   static const String messages = 'messages';
   static const String orderCodes = 'orderCodes';
   static const String fcmTokens = 'fcmTokens';
+  /// Configuración global pública (p. ej. versión mínima obligatoria).
+  static const String appConfig = 'appConfig';
 }

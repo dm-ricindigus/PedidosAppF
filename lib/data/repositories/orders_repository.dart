@@ -48,13 +48,20 @@ class OrdersRepository {
     String clientId,
   ) => _orders.where(FirestoreFields.clientId, isEqualTo: clientId).snapshots();
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> watchAllOrdersByCreatedAtDesc() =>
-      _orders.orderBy(FirestoreFields.createdAt, descending: true).snapshots();
+  /// Pedidos creados con un código generado por este admin (`orders.adminId`).
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchOrdersByAdminCreatedAtDesc(
+    String adminId,
+  ) =>
+      _orders
+          .where(FirestoreFields.adminId, isEqualTo: adminId)
+          .orderBy(FirestoreFields.createdAt, descending: true)
+          .snapshots();
 
-  /// Códigos de pedido aún no usados por el cliente (admin: filtro pendiente de ingreso).
+  /// Códigos no usados generados por un admin concreto.
   Stream<QuerySnapshot<Map<String, dynamic>>>
-      watchUnusedOrderCodesByCreatedAtDesc() => _orderCodes
+      watchUnusedOrderCodesByAdminCreatedAtDesc(String adminId) => _orderCodes
           .where(FirestoreFields.used, isEqualTo: false)
+          .where(FirestoreFields.adminId, isEqualTo: adminId)
           .orderBy(FirestoreFields.createdAt, descending: true)
           .snapshots();
 

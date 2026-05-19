@@ -1,19 +1,19 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:pedidosapp/app_main.dart';
 import 'package:pedidosapp/features/client/home_client.dart';
+import 'package:pedidosapp/firebase_app_bootstrap.dart';
 import 'package:pedidosapp/firebase_options_prod.dart';
 import 'package:pedidosapp/services/fcm_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandlerProd(RemoteMessage message) async {
-  await _initializeProdFirebase();
+  await ensureFirebaseInitialized(ProdFirebaseOptions.currentPlatform);
 }
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await _initializeProdFirebase();
+  await initializeFirebaseApp(ProdFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandlerProd);
   FcmService.setupForegroundHandler();
   FcmService.setupNotificationTapHandler((orderCode) {
@@ -25,16 +25,4 @@ Future<void> main() async {
     }
   });
   runApp(const PedidosApp());
-}
-
-Future<void> _initializeProdFirebase() async {
-  try {
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(options: ProdFirebaseOptions.currentPlatform);
-    } else {
-      Firebase.app();
-    }
-  } on FirebaseException catch (e) {
-    if (e.code != 'duplicate-app') rethrow;
-  }
 }

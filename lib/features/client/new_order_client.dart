@@ -168,8 +168,22 @@ class _NewOrderPageState extends State<NewOrderPage> {
         name: 'SaveOrder',
       );
 
-      // Crear el documento del pedido
-      await orderRef.set({
+      final codeSnap = await _ordersRepo.getOrderCodeDoc(orderCode);
+      String? orderCodeAdminUid;
+      String? orderCodeAdminEmail;
+      if (codeSnap.exists && codeSnap.data() != null) {
+        final codeData = codeSnap.data()!;
+        orderCodeAdminUid =
+            (codeData[FirestoreFields.createdByUid] as String?)?.trim() ??
+            (codeData[FirestoreFields.adminId] as String?)?.trim();
+        orderCodeAdminEmail =
+            (codeData[FirestoreFields.createdByEmail] as String?)?.trim();
+        if (orderCodeAdminEmail != null && orderCodeAdminEmail.isEmpty) {
+          orderCodeAdminEmail = null;
+        }
+      }
+
+      final Map<String, dynamic> orderPayload = {
         FirestoreFields.orderCode: orderCode,
         FirestoreFields.title: titulo,
         FirestoreFields.state: 1, // Estado 1: Ingresado
@@ -178,7 +192,16 @@ class _NewOrderPageState extends State<NewOrderPage> {
             (user.email ?? '').trim().toLowerCase(),
         FirestoreFields.maxDeliveryDate: Timestamp.fromDate(_fechaMaxEntrega!),
         FirestoreFields.createdAt: FieldValue.serverTimestamp(),
-      });
+      };
+      if (orderCodeAdminUid != null && orderCodeAdminUid.isNotEmpty) {
+        orderPayload[FirestoreFields.adminId] = orderCodeAdminUid;
+      }
+      if (orderCodeAdminEmail != null && orderCodeAdminEmail.isNotEmpty) {
+        orderPayload[FirestoreFields.createdByEmail] = orderCodeAdminEmail;
+      }
+
+      // Crear el documento del pedido
+      await orderRef.set(orderPayload);
 
       developer.log(
         '✅ Pedido creado con ID: ${orderRef.id}',

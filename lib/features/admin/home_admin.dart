@@ -146,8 +146,21 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
 
   Widget _buildUnusedOrderCodesList(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final String? adminUid = _authRepo.currentUser?.uid;
+    if (adminUid == null || adminUid.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            'Inicia sesión de nuevo para ver tus códigos pendientes.',
+            style: textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _ordersRepo.watchUnusedOrderCodesByCreatedAtDesc(),
+      stream: _ordersRepo.watchUnusedOrderCodesByAdminCreatedAtDesc(adminUid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -194,8 +207,21 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
 
   Widget _buildOrdersList(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+    final String? adminUid = _authRepo.currentUser?.uid;
+    if (adminUid == null || adminUid.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            'Inicia sesión de nuevo para ver tus pedidos.',
+            style: textTheme.bodyMedium,
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _ordersRepo.watchAllOrdersByCreatedAtDesc(),
+      stream: _ordersRepo.watchOrdersByAdminCreatedAtDesc(adminUid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

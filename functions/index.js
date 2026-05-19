@@ -61,6 +61,17 @@ exports.createOrderCode = onCall(async (request) => {
       );
     }
 
+    let createdByEmail = '';
+    try {
+      const authUser = await admin.auth().getUser(adminId);
+      createdByEmail = (authUser.email || '').trim().toLowerCase();
+    } catch (e) {
+      console.warn('[createOrderCode] No se pudo obtener email de Auth:', e.message);
+    }
+    if (!createdByEmail && userData.email) {
+      createdByEmail = String(userData.email).trim().toLowerCase();
+    }
+
     // Validar datos de entrada
     const clientEmail = data.clientEmail;
     if (!clientEmail || typeof clientEmail !== 'string' || !clientEmail.includes('@')) {
@@ -87,6 +98,8 @@ exports.createOrderCode = onCall(async (request) => {
           code: codigo,
           clientEmail: clientEmail.trim().toLowerCase(),
           adminId: adminId,
+          createdByUid: adminId,
+          createdByEmail: createdByEmail || null,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           used: false,
         });
