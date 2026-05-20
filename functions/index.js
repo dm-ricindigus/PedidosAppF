@@ -147,6 +147,8 @@ const ESTADOS = {
 
 /** Payload `data.type` para routing en la app (debe coincidir con [FcmNotificationTypes]). */
 const FCM_TYPE_NEW_ORDER_ADMIN = 'new_order_admin';
+/** Cliente añadió mensaje en un pedido existente (editar pedido). */
+const FCM_TYPE_CLIENT_MESSAGE_ADMIN = 'client_message_admin';
 
 // Notifica al admin que generó el código cuando el cliente crea el pedido.
 exports.onOrderCreatedNotifyAdmin = onDocumentCreated(
@@ -225,6 +227,144 @@ exports.onOrderCreatedNotifyAdmin = onDocumentCreated(
     } catch (sendError) {
       console.error(
         '[onOrderCreatedNotifyAdmin] Error al enviar:',
+        sendError.message,
+      );
+      throw sendError;
+    }
+  },
+);
+
+// Cliente envía un mensaje nuevo al editar el pedido: notificar al admin del código.
+// Se omite el primer mensaje del pedido (el flujo de creación ya dispara onOrderCreatedNotifyAdmin).
+exports.onClientMessageNotifyAdmin = onDocumentCreated(
+  'messages/{messageId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      console.log('[onClientMessageNotifyAdmin] No snapshot');
+      return;
+    }
+
+    const msg = snap.data();
+    const orderId =
+      msg.orderId != null && msg.orderId !== ''
+        ? String(msg.orderId)
+        : null;
+    const senderId =
+      msg.userId != null && msg.userId !== '' ? String(msg.userId) : null;
+
+    if (!orderId || !senderId) {
+      console.log('[onClientMessageNotifyAdmin] Falta orderId o userId');
+      return;
+    }
+
+    const orderRef = db.collection('orders').doc(orderId);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists) {
+      console.log('[onClientMessageNotifyAdmin] Pedido no existe:', orderId);
+      return;
+    }
+
+    const order = orderSnap.data();
+    const clientId =
+      order.clientId != null ? String(order.clientId) : null;
+    if (!clientId || clientId !== senderId) {
+      console.log(
+        '[onClientMessageNotifyAdmin] Mensaje no es del cliente del pedido, omitiendo',
+      );
+      return;
+    }
+
+    const countSnap = await db
+      .collection('messages')
+      .where('orderId', '==', orderId)
+      .limit(2)
+      .get();
+
+    if (countSnap.size <= 1) {
+      console.log(
+        '[onClientMessageNotifyAdmin] Primer mensaje del pedido (ya notifica creación), omitiendo',
+      );
+      return;
+    }
+
+    const adminId = order.adminId;
+    if (!adminId || typeof adminId !== 'string') {
+      console.log(
+        '[onClientMessageNotifyAdmin] Sin adminId en el pedido, se omite notificación',
+      );
+      return;
+    }
+
+    const orderCode =
+      order.orderCode != null ? String(order.orderCode) : '';
+    const titulo =
+      order.title != null && String(order.title).trim()
+        ? String(order.title).trim()
+        : 'Pedido';
+
+    const text =
+      msg.message != null && String(msg.message).trim()
+        ? String(msg.message).trim()
+        : '';
+
+    const preview =
+      text.length > 120 ? text.slice(0, 117) + '...' : text;
+
+    const tokenDoc = await db.collection('fcmTokens').doc(adminId).get();
+    if (!tokenDoc.exists) {
+      console.log(
+        '[onClientMessageNotifyAdmin] Sin token FCM para admin:',
+        adminId,
+      );
+      return;
+    }
+
+    const token = tokenDoc.data()?.token;
+    if (!token) {
+      console.log(
+        '[onClientMessageNotifyAdmin] Token vacío para admin:',
+        adminId,
+      );
+      return;
+    }
+
+    const bodyParts = [];
+    if (orderCode.length > 0) bodyParts.push(`Código ${orderCode}`);
+    bodyParts.push(titulo);
+    if (preview.length > 0) bodyParts.push(preview);
+    let body = bodyParts.join(' · ');
+    if (body.length > 200) body = body.slice(0, 197) + '...';
+
+    const fcmMessage = {
+      notification: {
+        title: 'Nuevo mensaje del cliente',
+        body,
+      },
+      data: {
+        type: FCM_TYPE_CLIENT_MESSAGE_ADMIN,
+        orderCode: orderCode,
+        orderId: orderId,
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'pedidos_high',
+          priority: 'high',
+        },
+      },
+      token: token,
+    };
+
+    try {
+      await admin.messaging().send(fcmMessage);
+      console.log(
+        '[onClientMessageNotifyAdmin] Notificación enviada al admin:',
+        adminId,
+      );
+    } catch (sendError) {
+      console.error(
+        '[onClientMessageNotifyAdmin] Error al enviar:',
         sendError.message,
       );
       throw sendError;

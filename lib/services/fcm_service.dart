@@ -7,11 +7,13 @@ import 'package:pedidosapp/data/firestore_collections.dart';
 /// Valores de `RemoteMessage.data['type']` enviados desde Cloud Functions.
 abstract final class FcmNotificationTypes {
   static const String newOrderForAdmin = 'new_order_admin';
+  /// Cliente añadió mensaje al pedido (editar pedido).
+  static const String clientMessageForAdmin = 'client_message_admin';
 }
 
 /// Servicio para gestionar notificaciones push (FCM).
 /// Guarda el token en Firestore para que las Cloud Functions envíen avisos
-/// al cliente (cambio de estado) y al admin (nuevo pedido con su código).
+/// al cliente (cambio de estado) y al admin (nuevo pedido / mensaje del cliente).
 class FcmService {
   static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;

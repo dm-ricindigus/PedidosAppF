@@ -64,11 +64,16 @@ class AppConfigRepository {
       final enabled = data[FirestoreFields.forceUpdateEnabled];
       final isEnabled = enabled is! bool || enabled;
 
-      final minCommon = _stringField(data, FirestoreFields.minVersion);
-      final minAndroid =
-          _stringField(data, FirestoreFields.minVersionAndroid) ?? minCommon;
-      final minIos =
-          _stringField(data, FirestoreFields.minVersionIos) ?? minCommon;
+      final minCommon = _minVersionField(data, FirestoreFields.minVersion);
+      final minAndroidOnly =
+          _minVersionField(data, FirestoreFields.minVersionAndroid);
+      final minIosOnly = _minVersionField(data, FirestoreFields.minVersionIos);
+
+      // `minVersion` es el mínimo global; los campos por plataforma añaden un
+      // requisito extra. La versión exigida es la más alta entre ambos (no se
+      // ignora `minVersion` solo porque exista `minVersionAndroid`).
+      final minAndroid = VersionUtils.strictestMin(minCommon, minAndroidOnly);
+      final minIos = VersionUtils.strictestMin(minCommon, minIosOnly);
       final minForPlatform = switch (platform) {
         TargetPlatform.android => minAndroid,
         TargetPlatform.iOS => minIos,
@@ -95,6 +100,17 @@ class AppConfigRepository {
         androidPlayStorePackageId: kDefaultAndroidPlayStorePackageId,
       );
     }
+  }
+
+  static String? _minVersionField(Map<String, dynamic> data, String key) {
+    final v = data[key];
+    if (v == null) return null;
+    if (v is String) {
+      final t = v.trim();
+      return t.isEmpty ? null : t;
+    }
+    if (v is num) return v.toString();
+    return null;
   }
 
   static String? _stringField(Map<String, dynamic> data, String key) {

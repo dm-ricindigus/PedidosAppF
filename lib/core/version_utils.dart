@@ -15,13 +15,26 @@ abstract final class VersionUtils {
     return 0;
   }
 
+  /// Versión mínima efectiva cuando hay varios campos en Firestore (`minVersion`
+  /// y `minVersionAndroid` / `minVersionIos`): se usa la más estricta (mayor).
+  static String? strictestMin(String? a, String? b) {
+    if (a == null && b == null) return null;
+    if (a == null) return b;
+    if (b == null) return a;
+    return compare(a, b) >= 0 ? a : b;
+  }
+
   static List<int>? _parseCore(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return null;
     // Quita build metadata (+123) y toma solo la parte antes del primer '-'
     // para ignorar sufijos como `-prod` en versionName de Gradle.
     final noBuild = trimmed.split('+').first;
-    final core = noBuild.split('-').first.trim();
+    var core = noBuild.split('-').first.trim();
+    if (core.length > 1 &&
+        (core.startsWith('v') || core.startsWith('V'))) {
+      core = core.substring(1).trim();
+    }
     final parts = core.split('.');
     if (parts.isEmpty) return null;
     final out = <int>[];

@@ -25,7 +25,8 @@ Future<void> main() async {
     if (nav == null) return;
 
     final type = data['type'] as String?;
-    if (type == FcmNotificationTypes.newOrderForAdmin) {
+    if (type == FcmNotificationTypes.newOrderForAdmin ||
+        type == FcmNotificationTypes.clientMessageForAdmin) {
       nav.pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeAdminPage()),
         (route) => false,

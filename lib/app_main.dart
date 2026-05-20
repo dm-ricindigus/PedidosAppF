@@ -21,7 +21,7 @@ class PedidosApp extends StatelessWidget {
 
     return MaterialApp(
       navigatorKey: navigatorKey,
-      title: 'TSM App',
+      title: 'TSM Clothes',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
