@@ -1,5 +1,8 @@
 const {onCall, HttpsError} = require('firebase-functions/v2/https');
-const {onDocumentUpdated} = require('firebase-functions/v2/firestore');
+const {
+  onDocumentCreated,
+  onDocumentUpdated,
+} = require('firebase-functions/v2/firestore');
 const {setGlobalOptions} = require('firebase-functions/v2');
 const admin = require('firebase-admin');
 
@@ -141,6 +144,93 @@ const ESTADOS = {
   5: 'Empacado',
   6: 'Entregado',
 };
+
+/** Payload `data.type` para routing en la app (debe coincidir con [FcmNotificationTypes]). */
+const FCM_TYPE_NEW_ORDER_ADMIN = 'new_order_admin';
+
+// Notifica al admin que generó el código cuando el cliente crea el pedido.
+exports.onOrderCreatedNotifyAdmin = onDocumentCreated(
+  'orders/{orderId}',
+  async (event) => {
+    const snap = event.data;
+    if (!snap) {
+      console.log('[onOrderCreatedNotifyAdmin] No snapshot');
+      return;
+    }
+
+    const order = snap.data();
+    const adminId = order.adminId;
+    if (!adminId || typeof adminId !== 'string') {
+      console.log(
+        '[onOrderCreatedNotifyAdmin] Sin adminId en el pedido, se omite notificación',
+      );
+      return;
+    }
+
+    const orderCode = order.orderCode != null ? String(order.orderCode) : '';
+    const titulo =
+      order.title != null && String(order.title).trim()
+        ? String(order.title).trim()
+        : 'Pedido';
+
+    const tokenDoc = await db.collection('fcmTokens').doc(adminId).get();
+    if (!tokenDoc.exists) {
+      console.log(
+        '[onOrderCreatedNotifyAdmin] Sin token FCM para admin:',
+        adminId,
+      );
+      return;
+    }
+
+    const token = tokenDoc.data()?.token;
+    if (!token) {
+      console.log(
+        '[onOrderCreatedNotifyAdmin] Token vacío para admin:',
+        adminId,
+      );
+      return;
+    }
+
+    const body =
+      orderCode.length > 0
+        ? `Código ${orderCode}: ${titulo}`
+        : `Nuevo pedido: ${titulo}`;
+
+    const message = {
+      notification: {
+        title: 'Nuevo pedido',
+        body: body.length > 200 ? body.slice(0, 197) + '...' : body,
+      },
+      data: {
+        type: FCM_TYPE_NEW_ORDER_ADMIN,
+        orderCode: orderCode,
+        orderId: event.params.orderId,
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channelId: 'pedidos_high',
+          priority: 'high',
+        },
+      },
+      token: token,
+    };
+
+    try {
+      await admin.messaging().send(message);
+      console.log(
+        '[onOrderCreatedNotifyAdmin] Notificación enviada al admin:',
+        adminId,
+      );
+    } catch (sendError) {
+      console.error(
+        '[onOrderCreatedNotifyAdmin] Error al enviar:',
+        sendError.message,
+      );
+      throw sendError;
+    }
+  },
+);
 
 // Envía notificación al cliente cuando el admin cambia el estado del pedido
 exports.onOrderStateChange = onDocumentUpdated(

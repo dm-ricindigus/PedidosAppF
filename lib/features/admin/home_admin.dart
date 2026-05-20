@@ -11,6 +11,7 @@ import 'package:pedidosapp/features/auth/login.dart';
 import 'package:pedidosapp/shared/order_home_list_helpers.dart';
 import 'package:pedidosapp/shared/widgets/logout_confirm_sheet.dart';
 import 'package:pedidosapp/shared/widgets/order_item.dart';
+import 'package:pedidosapp/services/fcm_service.dart';
 import 'dart:developer' as developer;
 
 class HomeAdminPage extends StatefulWidget {
@@ -20,7 +21,8 @@ class HomeAdminPage extends StatefulWidget {
   State<HomeAdminPage> createState() => _HomeAdminPageState();
 }
 
-class _HomeAdminPageState extends State<HomeAdminPage> {
+class _HomeAdminPageState extends State<HomeAdminPage>
+    with WidgetsBindingObserver {
   final AuthRepository _authRepo = AuthRepository();
   final OrdersRepository _ordersRepo = OrdersRepository();
 
@@ -30,6 +32,33 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
 
   int _selectedFilterId = 7; // 7 = in progress (all except delivered)
   String _sortKey = 'fecha_desc';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshFcmToken();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshFcmToken();
+    }
+  }
+
+  void _refreshFcmToken() {
+    final uid = _authRepo.currentUser?.uid;
+    if (uid != null) {
+      FcmService.initAndSaveToken(uid);
+    }
+  }
 
   void _prefetchClientEmailsFromOrderCodes(
     List<QueryDocumentSnapshot> orderDocs,
@@ -102,7 +131,11 @@ class _HomeAdminPageState extends State<HomeAdminPage> {
         onCancel: () => Navigator.pop(modalContext),
         onLogout: () async {
           Navigator.pop(modalContext);
+          final uid = _authRepo.currentUser?.uid;
           try {
+            if (uid != null) {
+              await FcmService.removeToken(uid);
+            }
             await _authRepo.signOut();
             if (context.mounted) {
               navigator.pushAndRemoveUntil(

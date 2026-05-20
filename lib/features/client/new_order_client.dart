@@ -33,7 +33,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
   DateTime? _fechaMaxEntrega;
   static const int _maxCaracteresTitulo = 50;
   static const int _maxCaracteresDescripcion = 500;
-  static const int _maxTamanoArchivoBytes = 6 * 1024 * 1024;
+  static const int _maxTamanoArchivoBytes = 20 * 1024 * 1024;
   static const int _concurrenciaSubida = 3;
 
   DateTime get _fechaMinima {
@@ -311,7 +311,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${archivosExcedidos.length} archivo(s) exceden el limite de 6 MB y no fueron agregados',
+            '${archivosExcedidos.length} archivo(s) exceden el limite de 20 MB y no fueron agregados',
           ),
           backgroundColor: Colors.orange.shade800,
         ),

@@ -33,7 +33,7 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
   final OrdersRepository _ordersRepo = OrdersRepository();
   final FirebaseStorage _storage = FirebaseStorage.instance;
   static const int _maxCaracteresDescripcion = 500;
-  static const int _maxTamanoArchivoBytes = 6 * 1024 * 1024;
+  static const int _maxTamanoArchivoBytes = 20 * 1024 * 1024;
   static const int _concurrenciaSubida = 3;
   bool _descripcionVacia = true;
   bool _isLoading = false;
@@ -114,7 +114,7 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '${archivosExcedidos.length} archivo(s) exceden el limite de 6 MB y no fueron agregados',
+            '${archivosExcedidos.length} archivo(s) exceden el limite de 20 MB y no fueron agregados',
           ),
           backgroundColor: Theme.of(context).colorScheme.errorContainer,
           behavior: SnackBarBehavior.floating,

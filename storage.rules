@@ -20,11 +20,11 @@ service firebase.storage {
           isAdmin()
         );
 
-      // Escritura autenticada, con limite de 6MB y contentType controlado.
+      // Escritura autenticada, con limite de 20MB y contentType controlado.
       // Se usa octet-stream desde Flutter.
       allow create, update: if isSignedIn() &&
         request.resource != null &&
-        request.resource.size <= 6 * 1024 * 1024 &&
+        request.resource.size <= 20 * 1024 * 1024 &&
         request.resource.contentType == 'application/octet-stream';
 
       // Permitir borrar solo al dueño del archivo o admin.
