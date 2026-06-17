@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -12,6 +13,7 @@ import 'package:pedidosapp/shared/order_home_list_helpers.dart';
 import 'package:pedidosapp/shared/widgets/logout_confirm_sheet.dart';
 import 'package:pedidosapp/shared/widgets/order_item.dart';
 import 'package:pedidosapp/services/fcm_service.dart';
+import 'package:pedidosapp/services/force_update_service.dart';
 import 'dart:developer' as developer;
 
 class HomeAdminPage extends StatefulWidget {
@@ -49,6 +51,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      ForceUpdateService.instance.revalidate();
       _refreshFcmToken();
     }
   }
@@ -160,7 +163,10 @@ class _HomeAdminPageState extends State<HomeAdminPage>
     );
   }
 
-  void _showCreateOrderCodeSheet(BuildContext context) {
+  void _showCreateOrderCodeSheet(
+    BuildContext context, {
+    String? initialClientEmail,
+  }) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -168,9 +174,96 @@ class _HomeAdminPageState extends State<HomeAdminPage>
       isDismissible: true,
       enableDrag: true,
       builder: (sheetCtx) => AdminCreateOrderCodeSheet(
+        initialClientEmail: initialClientEmail,
         onSubmit: (email, sheetContext) =>
             _createOrderCode(email, sheetContext),
       ),
+    );
+  }
+
+  void _showOrderItemLongPressMenu(
+    BuildContext context, {
+    required String orderCode,
+    required String? prefilledClientEmail,
+  }) {
+    final theme = Theme.of(context);
+    final email = prefilledClientEmail?.trim() ?? '';
+    final hasEmail = email.isNotEmpty;
+    final idTrimmed = orderCode.trim();
+    final hasOrderId = idTrimmed.isNotEmpty && idTrimmed != 'Sin codigo';
+
+    void snack(String msg) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+      );
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: theme.colorScheme.primary,
+                  ),
+                  title: const Text('Crear nuevo ID de pedido'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showCreateOrderCodeSheet(
+                      context,
+                      initialClientEmail: prefilledClientEmail,
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.alternate_email_rounded,
+                    color: hasEmail
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                  title: const Text('Copiar correo'),
+                  enabled: hasEmail,
+                  onTap: hasEmail
+                      ? () {
+                          Clipboard.setData(ClipboardData(text: email));
+                          Navigator.pop(ctx);
+                          snack('Correo copiado al portapapeles');
+                        }
+                      : null,
+                ),
+                ListTile(
+                  leading: Icon(
+                    Icons.tag_rounded,
+                    color: hasOrderId
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                  title: const Text('Copiar ID de pedido'),
+                  enabled: hasOrderId,
+                  onTap: hasOrderId
+                      ? () {
+                          Clipboard.setData(ClipboardData(text: idTrimmed));
+                          Navigator.pop(ctx);
+                          snack('ID de pedido copiado al portapapeles');
+                        }
+                      : null,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -224,13 +317,23 @@ class _HomeAdminPageState extends State<HomeAdminPage>
             final data = doc.data() as Map<String, dynamic>;
             final createdTs = data[FirestoreFields.createdAt] as Timestamp?;
             final createdAt = createdTs?.toDate();
+            final String? pendingEmail = () {
+              final s =
+                  (data[FirestoreFields.clientEmail] as String?)?.trim() ?? '';
+              return s.isNotEmpty ? s : null;
+            }();
             return OrderItem(
               numeroPedido: 'ID de Pedido: $code',
               titulo: _pendingClientEntryTitle,
               estado: '',
-              clientEmail: data[FirestoreFields.clientEmail] as String?,
+              clientEmail: pendingEmail,
               fechaCreado: createdAt,
               hideEstadoChip: true,
+              onLongPress: () => _showOrderItemLongPressMenu(
+                context,
+                orderCode: code,
+                prefilledClientEmail: pendingEmail,
+              ),
             );
           },
         );
@@ -325,12 +428,14 @@ class _HomeAdminPageState extends State<HomeAdminPage>
                 data[FirestoreFields.maxDeliveryDate] as Timestamp?;
             final DateTime? maxDeliveryDate = maxDeliveryTs?.toDate();
             final String orderDisplayLine = 'Pedido Nº $orderCode';
+            final String? listClientEmail =
+                _clientEmailForOrderListItem(data, orderCode.trim());
 
             return OrderItem(
               numeroPedido: orderDisplayLine,
               titulo: orderTitle,
               estado: _labelForOrderState(state),
-              clientEmail: _clientEmailForOrderListItem(data, orderCode.trim()),
+              clientEmail: listClientEmail,
               fechaMaxEntrega: maxDeliveryDate,
               onTap: () {
                 Navigator.push(
@@ -344,6 +449,11 @@ class _HomeAdminPageState extends State<HomeAdminPage>
                   ),
                 );
               },
+              onLongPress: () => _showOrderItemLongPressMenu(
+                context,
+                orderCode: orderCode.trim(),
+                prefilledClientEmail: listClientEmail,
+              ),
             );
           },
         );

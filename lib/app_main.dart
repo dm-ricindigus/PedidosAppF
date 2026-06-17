@@ -1,17 +1,17 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:pedidosapp/core/app_navigator.dart';
 import 'package:pedidosapp/features/admin/home_admin.dart';
 import 'package:pedidosapp/features/client/home_client.dart';
 import 'package:pedidosapp/data/repositories/app_config_repository.dart';
 import 'package:pedidosapp/data/repositories/auth_repository.dart';
 import 'package:pedidosapp/features/auth/login.dart';
+import 'package:pedidosapp/services/analytics_service.dart';
+import 'package:pedidosapp/services/force_update_checker.dart';
+import 'package:pedidosapp/widgets/force_update_overlay_host.dart';
 import 'package:pedidosapp/widgets/force_update_screen.dart';
 
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-/// Raíz Material de la app (compartido entre dev/prod).
 class PedidosApp extends StatelessWidget {
   const PedidosApp({super.key});
 
@@ -21,6 +21,8 @@ class PedidosApp extends StatelessWidget {
 
     return MaterialApp(
       navigatorKey: navigatorKey,
+      navigatorObservers: [AnalyticsService.observer],
+      debugShowCheckedModeBanner: false,
       title: 'TSM Clothes',
       theme: ThemeData(
         useMaterial3: true,
@@ -30,6 +32,10 @@ class PedidosApp extends StatelessWidget {
         ),
         textTheme: GoogleFonts.nunitoTextTheme(),
       ),
+      builder: (context, child) {
+        if (child == null) return const SizedBox.shrink();
+        return ForceUpdateOverlayHost(child: child);
+      },
       home: const SplashPage(),
     );
   }
@@ -44,7 +50,7 @@ class SplashPage extends StatefulWidget {
 
 class _SplashPageState extends State<SplashPage> {
   final AuthRepository _authRepository = AuthRepository();
-  final AppConfigRepository _appConfigRepository = AppConfigRepository();
+  final ForceUpdateChecker _forceUpdateChecker = ForceUpdateChecker();
   PackageInfo? _packageInfo;
   ({ForceUpdatePolicy policy, Uri? storeUri})? _forceUpdate;
 
@@ -62,22 +68,17 @@ class _SplashPageState extends State<SplashPage> {
       _forceUpdate = null;
     });
 
-    final skipForceCheck = kDebugMode ||
-        kIsWeb ||
-        info.packageName.endsWith('.dev');
-
-    if (!skipForceCheck) {
-      final policy = await _appConfigRepository.fetchForceUpdatePolicy(
-        defaultTargetPlatform,
-      );
-      if (!mounted) return;
-      if (policy.requiresUpdate(info.version)) {
-        final storeUri = buildStoreUri(defaultTargetPlatform, policy);
-        setState(() {
-          _forceUpdate = (policy: policy, storeUri: storeUri);
-        });
-        return;
-      }
+    final evaluation =
+        await _forceUpdateChecker.evaluate(packageInfo: info);
+    if (!mounted) return;
+    if (evaluation != null) {
+      setState(() {
+        _forceUpdate = (
+          policy: evaluation.policy,
+          storeUri: evaluation.storeUri,
+        );
+      });
+      return;
     }
 
     await Future<void>.delayed(const Duration(milliseconds: 1400));
@@ -91,6 +92,7 @@ class _SplashPageState extends State<SplashPage> {
     if (user != null) {
       try {
         final role = await _authRepository.getRoleForUid(user.uid);
+        await AnalyticsService.setUserContext(uid: user.uid, role: role);
         if (!mounted) return;
         if (role == 'admin') {
           Navigator.of(context).pushReplacement(

@@ -19,13 +19,15 @@
             "name": "pedidosapp (ios dev)",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main_dev.dart"
+            "program": "lib/main_dev.dart",
+            "args": ["--flavor", "dev"]
         },
         {
             "name": "pedidosapp (ios prod)",
             "request": "launch",
             "type": "dart",
-            "program": "lib/main.dart"
+            "program": "lib/main.dart",
+            "args": ["--flavor", "prod"]
         },
         {
             "name": "pedidosapp (android prod, profile)",

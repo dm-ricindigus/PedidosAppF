@@ -148,7 +148,14 @@ Future<void> showAdminErrorSheet(BuildContext context, String errorMessage) {
 
 /// Sheet: client email + submit (Cloud Function called by parent).
 class AdminCreateOrderCodeSheet extends StatefulWidget {
-  const AdminCreateOrderCodeSheet({super.key, required this.onSubmit});
+  const AdminCreateOrderCodeSheet({
+    super.key,
+    this.initialClientEmail,
+    required this.onSubmit,
+  });
+
+  /// Si no es null/vacío, se coloca en el campo al abrir (p. ej. desde un pedido).
+  final String? initialClientEmail;
 
   final Future<void> Function(String email, BuildContext sheetContext) onSubmit;
 
@@ -158,7 +165,14 @@ class AdminCreateOrderCodeSheet extends StatefulWidget {
 }
 
 class _AdminCreateOrderCodeSheetState extends State<AdminCreateOrderCodeSheet> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller =
+      TextEditingController(text: _initialText());
+
+  String _initialText() {
+    final s = widget.initialClientEmail?.trim() ?? '';
+    return s;
+  }
+
   bool _loading = false;
 
   @override

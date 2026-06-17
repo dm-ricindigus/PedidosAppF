@@ -67,6 +67,7 @@ class OrderItem extends StatelessWidget {
   /// Solo número, título y línea de fecha; sin chip de estado.
   final bool hideEstadoChip;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   const OrderItem({
     super.key,
@@ -78,6 +79,7 @@ class OrderItem extends StatelessWidget {
     this.fechaCreado,
     this.hideEstadoChip = false,
     this.onTap,
+    this.onLongPress,
   });
 
   String _formatearFecha(DateTime d) {
@@ -192,12 +194,25 @@ class OrderItem extends StatelessWidget {
         color: Theme.of(context).colorScheme.surfaceContainerLowest,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         clipBehavior: Clip.antiAlias,
-        child: onTap != null
+        child: onTap != null || onLongPress != null
             ? InkWell(
                 onTap: onTap,
-                child: _orderItemBody(context, colorScheme, chipBg, chipFg, chipIcon),
+                onLongPress: onLongPress,
+                child: _orderItemBody(
+                  context,
+                  colorScheme,
+                  chipBg,
+                  chipFg,
+                  chipIcon,
+                ),
               )
-            : _orderItemBody(context, colorScheme, chipBg, chipFg, chipIcon),
+            : _orderItemBody(
+                context,
+                colorScheme,
+                chipBg,
+                chipFg,
+                chipIcon,
+              ),
       ),
     );
   }

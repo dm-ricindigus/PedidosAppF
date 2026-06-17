@@ -36,11 +36,11 @@ class ProdFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCzZcflUrfshAf0eEcV4P0WI2rxkzvZDXE',
-    appId: '1:978040200097:ios:06a8260aa31d8962f749e0',
+    appId: '1:978040200097:ios:a78f9a89ad509f02f749e0',
     messagingSenderId: '978040200097',
     projectId: 'pedidos-alkoto-prod',
     storageBucket: 'pedidos-alkoto-prod.firebasestorage.app',
-    iosBundleId: 'com.ricindigus.tsm.pedidosapp',
+    iosBundleId: 'com.ricindigus.tsm.pedidosapp.prod',
   );
 
 }

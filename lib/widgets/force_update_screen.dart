@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:pedidosapp/data/repositories/app_config_repository.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -36,6 +37,11 @@ class ForceUpdateScreen extends StatelessWidget {
 
     return PopScope(
       canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Atrás no vuelve al dashboard; cierra la app (esperado en Android).
+        SystemNavigator.pop();
+      },
       child: Scaffold(
         body: SafeArea(
           child: Padding(
@@ -116,8 +122,8 @@ Uri? buildStoreUri(TargetPlatform platform, ForceUpdatePolicy policy) {
       if (url != null && url.isNotEmpty) {
         return Uri.parse(url);
       }
-      final appId = policy.iosAppStoreId;
-      if (appId != null && appId.isNotEmpty) {
+      final appId = policy.iosAppStoreId ?? kDefaultIosAppStoreId;
+      if (appId.isNotEmpty) {
         return Uri.parse('https://apps.apple.com/app/id$appId');
       }
       return null;

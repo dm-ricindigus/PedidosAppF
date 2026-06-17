@@ -28,6 +28,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
   final GlobalKey _adminOrderAppBarKey = GlobalKey();
   late String _currentStateLabel;
   String? _orderId;
+  String? _clientEmail;
   Timestamp? _maxDeliveryDate;
   bool _loadingOrder = true;
 
@@ -127,6 +128,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
       if (orderQuery.docs.isEmpty) {
         setState(() {
           _orderId = null;
+          _clientEmail = null;
           _loadingOrder = false;
         });
         return;
@@ -137,9 +139,14 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
       final state = orderData[FirestoreFields.state] as int?;
       final maxDeliveryDate =
           orderData[FirestoreFields.maxDeliveryDate] as Timestamp?;
+      final rawEmail = orderData[FirestoreFields.clientEmail];
+      final emailStr =
+          rawEmail == null ? '' : rawEmail.toString().trim();
+      final clientEmail = emailStr.isNotEmpty ? emailStr : null;
 
       setState(() {
         _orderId = orderDoc.id;
+        _clientEmail = clientEmail;
         _currentStateLabel = _labelForStateCode(state);
         _maxDeliveryDate = maxDeliveryDate;
         _loadingOrder = false;
@@ -148,6 +155,8 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
       if (!mounted) return;
       setState(() {
         _loadingOrder = false;
+        _orderId = null;
+        _clientEmail = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -273,6 +282,8 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
             textTheme: textTheme,
             onSurfaceVariant: theme.colorScheme.onSurfaceVariant,
             onTapChangeState: _showStatePickerSheet,
+            clientEmail:
+                (!_loadingOrder && _orderId != null) ? _clientEmail : null,
           ),
           Expanded(
             child: Padding(

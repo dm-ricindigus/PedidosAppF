@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
+import 'package:pedidosapp/services/analytics_service.dart';
 
 /// Solo inicializa Firebase (p. ej. isolate de FCM en segundo plano).
 Future<void> ensureFirebaseInitialized(FirebaseOptions options) async {
@@ -18,6 +19,7 @@ Future<void> ensureFirebaseInitialized(FirebaseOptions options) async {
 /// Firebase + Crashlytics: errores de Flutter y errores async no capturados.
 Future<void> initializeFirebaseApp(FirebaseOptions options) async {
   await ensureFirebaseInitialized(options);
+  await AnalyticsService.configureCollection();
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
   FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
   PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {

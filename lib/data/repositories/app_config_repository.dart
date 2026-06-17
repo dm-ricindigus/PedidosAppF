@@ -11,6 +11,9 @@ const String kAppConfigSettingsDocId = 'settings';
 const String kDefaultAndroidPlayStorePackageId =
     'com.ricindigus.tsm.pedidosapp.prod';
 
+/// App Store Connect — TSM Clothes (producción).
+const String kDefaultIosAppStoreId = '6772374779';
+
 /// Política leída de Firestore para obligar actualización.
 class ForceUpdatePolicy {
   const ForceUpdatePolicy({
@@ -48,10 +51,15 @@ class AppConfigRepository {
     TargetPlatform platform,
   ) async {
     try {
-      final snap = await _db
+      final ref = _db
           .collection(FirestoreCollections.appConfig)
-          .doc(kAppConfigSettingsDocId)
-          .get();
+          .doc(kAppConfigSettingsDocId);
+      DocumentSnapshot<Map<String, dynamic>> snap;
+      try {
+        snap = await ref.get(const GetOptions(source: Source.server));
+      } catch (_) {
+        snap = await ref.get();
+      }
       if (!snap.exists) {
         return ForceUpdatePolicy(
           enabled: false,
@@ -89,7 +97,8 @@ class AppConfigRepository {
             ) ??
             kDefaultAndroidPlayStorePackageId,
         iosStoreUrl: _stringField(data, FirestoreFields.iosStoreUrl),
-        iosAppStoreId: _stringField(data, FirestoreFields.iosAppStoreId),
+        iosAppStoreId: _stringField(data, FirestoreFields.iosAppStoreId) ??
+            kDefaultIosAppStoreId,
         message: _stringField(data, FirestoreFields.forceUpdateMessage),
       );
     } catch (e, st) {

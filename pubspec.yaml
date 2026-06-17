@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.2+10
+version: 1.0.4+14
 
 environment:
   sdk: ^3.10.4
@@ -54,12 +54,20 @@ dependencies:
   file_saver: ^0.3.1
   package_info_plus: ^8.1.2
   firebase_crashlytics: ^4.3.10
+  firebase_analytics: ^11.6.0
+  flutter_local_notifications: ^22.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
   firebase_core_platform_interface: ^6.0.2
+
+# Evita objective_c FFI con binario marcado como simulador embebido en release (rechazo 409 App Store Connect).
+# path_provider_foundation >=2.6.0 lo arrastra; 2.5.1 no usa ese camino native-assets aquí.
+# Ver: dart-lang/native#2989, flutter/flutter#185667
+dependency_overrides:
+  path_provider_foundation: 2.5.1
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

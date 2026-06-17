@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:pedidosapp/shared/widgets/order_item.dart';
 
-/// State chip + max delivery date line.
+/// State chip + max delivery date line + correo del cliente (opcional).
 class OrderDetailAdminStateHeader extends StatelessWidget {
   const OrderDetailAdminStateHeader({
     super.key,
@@ -14,6 +14,7 @@ class OrderDetailAdminStateHeader extends StatelessWidget {
     required this.textTheme,
     required this.onSurfaceVariant,
     required this.onTapChangeState,
+    this.clientEmail,
   });
 
   final String currentStateLabel;
@@ -24,9 +25,12 @@ class OrderDetailAdminStateHeader extends StatelessWidget {
   final TextTheme textTheme;
   final Color onSurfaceVariant;
   final VoidCallback onTapChangeState;
+  /// Solo el texto del correo (seleccionable); si es null o vacío no se muestra fila.
+  final String? clientEmail;
 
   @override
   Widget build(BuildContext context) {
+    final email = clientEmail?.trim() ?? '';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       child: Column(
@@ -62,17 +66,32 @@ class OrderDetailAdminStateHeader extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Center(
-            child: Row(
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.event_rounded, size: 18, color: onSurfaceVariant),
-                const SizedBox(width: 8),
-                Text(
-                  maxDeliveryLabel,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: onSurfaceVariant,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.event_rounded, size: 18, color: onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    Text(
+                      maxDeliveryLabel,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
+                if (email.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  SelectableText(
+                    email,
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

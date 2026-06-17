@@ -36,11 +36,11 @@ class DevFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDU4rNGfl4aQJ9eKvq-TkwWV2j4uBX2UQY',
-    appId: '1:60224711452:ios:3053f68031c789537b28d9',
+    appId: '1:60224711452:ios:a0dafccf582458e47b28d9',
     messagingSenderId: '60224711452',
     projectId: 'pedidosapp-5eb2c',
     storageBucket: 'pedidosapp-5eb2c.firebasestorage.app',
-    iosBundleId: 'com.ricindigus.tsm.pedidosapp',
+    iosBundleId: 'com.ricindigus.tsm.pedidosapp.dev',
   );
 
 }

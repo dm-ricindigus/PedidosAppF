@@ -12,6 +12,7 @@ import 'package:pedidosapp/shared/order_home_list_helpers.dart';
 import 'package:pedidosapp/shared/widgets/logout_confirm_sheet.dart';
 import 'package:pedidosapp/shared/widgets/order_item.dart';
 import 'package:pedidosapp/services/fcm_service.dart';
+import 'package:pedidosapp/services/force_update_service.dart';
 import 'dart:developer' as developer;
 
 class HomeClientPage extends StatefulWidget {
@@ -45,6 +46,7 @@ class _HomeClientPageState extends State<HomeClientPage>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      ForceUpdateService.instance.revalidate();
       _refreshFcmToken();
     }
   }

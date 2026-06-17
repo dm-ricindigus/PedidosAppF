@@ -7,6 +7,7 @@ import 'package:pedidosapp/features/admin/home_admin.dart';
 import 'package:pedidosapp/features/auth/register.dart';
 import 'package:pedidosapp/features/auth/widgets/login_screen_widgets.dart';
 import 'package:pedidosapp/features/client/home_client.dart';
+import 'package:pedidosapp/services/analytics_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.title});
@@ -136,6 +137,8 @@ class _LoginPageState extends State<LoginPage> {
         final String role = await _authRepo.getRoleForUid(user.uid);
 
         developer.log('👤 Rol del usuario: $role', name: 'FirebaseAuth');
+
+        await AnalyticsService.setUserContext(uid: user.uid, role: role);
 
         if (mounted) {
           if (role == 'admin') {

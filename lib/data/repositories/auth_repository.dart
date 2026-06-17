@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:pedidosapp/data/field_keys.dart';
 import 'package:pedidosapp/data/firestore_collections.dart';
+import 'package:pedidosapp/services/analytics_service.dart';
 
 /// Acceso a Firebase Auth y documento de usuario en Firestore.
 /// Las pantallas llaman aquí en lugar de usar [FirebaseAuth] / [FirebaseFirestore] directo.
@@ -27,7 +28,10 @@ class AuthRepository {
     return _auth.signInWithEmailAndPassword(email: email, password: password);
   }
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    await AnalyticsService.clearUserContext();
+    await _auth.signOut();
+  }
 
   Future<User?> reloadAuthenticatedUser(User user) async {
     await user.reload();
