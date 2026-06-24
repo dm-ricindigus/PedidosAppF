@@ -11,7 +11,7 @@ const String kAppConfigSettingsDocId = 'settings';
 const String kDefaultAndroidPlayStorePackageId =
     'com.ricindigus.tsm.pedidosapp.prod';
 
-/// App Store Connect — TSM Clothes (producción).
+/// App Store Connect — TSM Clothing (producción).
 const String kDefaultIosAppStoreId = '6772374779';
 
 /// Política leída de Firestore para obligar actualización.

@@ -52,7 +52,7 @@ android {
             dimension = "environment"
             applicationIdSuffix = ".prod"
             versionNameSuffix = "-prod"
-            resValue("string", "app_name", "TSM Clothes")
+            resValue("string", "app_name", "TSM Clothing")
         }
     }
 

@@ -225,26 +225,29 @@ Future<void> showOrderFormProgressSheet(
             ),
           ),
           padding: const EdgeInsets.all(24),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+          child: SafeArea(
+            top: false,
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(scheme.primary),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  message,
-                  style: Theme.of(
-                    sheetContext,
-                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    message,
+                    style: Theme.of(
+                      sheetContext,
+                    ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
@@ -276,17 +279,19 @@ Future<void> showOrderFormSuccessSheet(
             topRight: Radius.circular(20),
           ),
         ),
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(icon, color: effectiveIconColor, size: 28),
-                  const SizedBox(width: 12),
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, color: effectiveIconColor, size: 28),
+                    const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       title,
@@ -319,6 +324,7 @@ Future<void> showOrderFormSuccessSheet(
               ),
             ],
           ),
+        ),
         ),
       );
     },

@@ -20,17 +20,19 @@ Future<void> showClientValidationErrorSheet(
         ),
       ),
       padding: EdgeInsets.only(
-        bottom: MediaQuery.of(ctx).viewInsets.bottom,
+        bottom: MediaQuery.viewInsetsOf(ctx).bottom,
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 28),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 28),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -57,7 +59,8 @@ Future<void> showClientValidationErrorSheet(
                 child: const Text('Entendido'),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     ),
@@ -109,7 +112,7 @@ class _OrderCodePedidoSheetState extends State<OrderCodePedidoSheet> {
       canPop: !_isLoading,
       child: Container(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -118,14 +121,16 @@ class _OrderCodePedidoSheetState extends State<OrderCodePedidoSheet> {
             topRight: Radius.circular(20),
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.only(
-            left: 16.0,
-            right: 16.0,
-            bottom: 16.0,
-            top: 16.0,
-          ),
-          child: Row(
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: const EdgeInsets.only(
+              left: 16.0,
+              right: 16.0,
+              bottom: 16.0,
+              top: 16.0,
+            ),
+            child: Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -192,6 +197,7 @@ class _OrderCodePedidoSheetState extends State<OrderCodePedidoSheet> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

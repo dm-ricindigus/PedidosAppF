@@ -23,7 +23,7 @@ class PedidosApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       navigatorObservers: [AnalyticsService.observer],
       debugShowCheckedModeBanner: false,
-      title: 'TSM Clothes',
+      title: 'TSM Clothing',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(

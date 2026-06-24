@@ -32,7 +32,7 @@ class FcmService {
   static const AndroidNotificationChannel _androidChannel =
       AndroidNotificationChannel(
     'pedidos_high',
-    'Pedidos TSM',
+    'TSM Clothing',
     description: 'Avisos de pedidos y mensajes',
     importance: Importance.high,
   );
@@ -113,7 +113,7 @@ class FcmService {
 
     if (!Platform.isAndroid) return;
 
-    final title = notification.title ?? 'TSM Clothes';
+    final title = notification.title ?? 'TSM Clothing';
     final body = notification.body ?? '';
 
     await _localNotifications.show(
