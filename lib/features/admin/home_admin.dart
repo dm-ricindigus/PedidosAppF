@@ -272,13 +272,12 @@ class _HomeAdminPageState extends State<HomeAdminPage>
 
   Widget _buildUnusedOrderCodesList(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final String? adminUid = _authRepo.currentUser?.uid;
-    if (adminUid == null || adminUid.isEmpty) {
+    if (_authRepo.currentUser == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Text(
-            'Inicia sesión de nuevo para ver tus códigos pendientes.',
+            'Inicia sesión de nuevo para ver los códigos pendientes.',
             style: textTheme.bodyMedium,
             textAlign: TextAlign.center,
           ),
@@ -286,7 +285,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
       );
     }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _ordersRepo.watchUnusedOrderCodesByAdminCreatedAtDesc(adminUid),
+      stream: _ordersRepo.watchAllUnusedOrderCodesCreatedAtDesc(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -343,13 +342,12 @@ class _HomeAdminPageState extends State<HomeAdminPage>
 
   Widget _buildOrdersList(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final String? adminUid = _authRepo.currentUser?.uid;
-    if (adminUid == null || adminUid.isEmpty) {
+    if (_authRepo.currentUser == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Text(
-            'Inicia sesión de nuevo para ver tus pedidos.',
+            'Inicia sesión de nuevo para ver los pedidos.',
             style: textTheme.bodyMedium,
             textAlign: TextAlign.center,
           ),
@@ -357,7 +355,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
       );
     }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _ordersRepo.watchOrdersByAdminCreatedAtDesc(adminUid),
+      stream: _ordersRepo.watchAllOrdersCreatedAtDesc(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
