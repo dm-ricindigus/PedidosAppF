@@ -135,6 +135,43 @@ exports.createOrderCode = onCall(async (request) => {
   }
 });
 
+// Elimina cuenta de cliente (Auth + perfil + FCM). Conserva orders y messages.
+exports.deleteClientAccount = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      'unauthenticated',
+      'Debes iniciar sesión para eliminar tu cuenta',
+    );
+  }
+
+  const uid = request.auth.uid;
+
+  const userDoc = await db.collection('users').doc(uid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError('not-found', 'Usuario no encontrado');
+  }
+
+  const role = userDoc.data()?.role;
+  if (role !== 'client') {
+    throw new HttpsError(
+      'permission-denied',
+      'Solo los clientes pueden eliminar su cuenta desde la app',
+    );
+  }
+
+  const fcmRef = db.collection('fcmTokens').doc(uid);
+  const fcmSnap = await fcmRef.get();
+  if (fcmSnap.exists) {
+    await fcmRef.delete();
+  }
+
+  await db.collection('users').doc(uid).delete();
+  await admin.auth().deleteUser(uid);
+
+  console.log('[deleteClientAccount] Cuenta eliminada:', uid);
+  return {success: true};
+});
+
 // Mapeo de códigos de estado a texto
 const ESTADOS = {
   1: 'Ingresado',

@@ -9,6 +9,7 @@ import 'package:pedidosapp/features/client/new_order_client.dart';
 import 'package:pedidosapp/features/client/order_detail_client.dart';
 import 'package:pedidosapp/features/client/widgets/home_client_widgets.dart';
 import 'package:pedidosapp/shared/order_home_list_helpers.dart';
+import 'package:pedidosapp/shared/widgets/home_account_menu_button.dart';
 import 'package:pedidosapp/shared/widgets/logout_confirm_sheet.dart';
 import 'package:pedidosapp/shared/widgets/order_item.dart';
 import 'package:pedidosapp/services/fcm_service.dart';
@@ -272,10 +273,10 @@ class _HomeClientPageState extends State<HomeClientPage>
           onAccentColor: onAccentColor,
         ),
         actions: [
-          IconButton(
-            onPressed: _mostrarModalConfirmarSalir,
-            tooltip: 'Cerrar sesión',
-            icon: const Icon(Icons.logout_rounded),
+          HomeAccountMenuButton(
+            email: userInfo,
+            iconColor: onAccentColor,
+            onLogout: _mostrarModalConfirmarSalir,
           ),
         ],
       ),
