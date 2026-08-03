@@ -21,6 +21,7 @@ function generarCodigoUnico() {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
+
 // Cloud Function para crear código de pedido
 exports.createOrderCode = onCall(async (request) => {
   try {
@@ -172,6 +173,171 @@ exports.deleteClientAccount = onCall(async (request) => {
   return {success: true};
 });
 
+const ORDER_STATE_CANCELADO = 7;
+
+async function assertAdminUser(uid) {
+  const userDoc = await db.collection('users').doc(uid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError('permission-denied', 'Usuario no encontrado');
+  }
+  if (userDoc.data()?.role !== 'admin') {
+    throw new HttpsError(
+      'permission-denied',
+      'Solo los administradores pueden realizar esta acción',
+    );
+  }
+}
+
+// Elimina un pedido cancelado: mensajes, archivos en Storage y documento del pedido.
+exports.deleteCancelledOrder = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      'unauthenticated',
+      'Debes iniciar sesión para eliminar pedidos',
+    );
+  }
+
+  const adminId = request.auth.uid;
+  await assertAdminUser(adminId);
+
+  const orderId = request.data?.orderId;
+  if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
+    throw new HttpsError('invalid-argument', 'Debes indicar el pedido a eliminar');
+  }
+
+  const trimmedOrderId = orderId.trim();
+  const orderRef = db.collection('orders').doc(trimmedOrderId);
+  const orderSnap = await orderRef.get();
+
+  if (!orderSnap.exists) {
+    throw new HttpsError('not-found', 'Pedido no encontrado');
+  }
+
+  const order = orderSnap.data();
+  if (order.state !== ORDER_STATE_CANCELADO) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Solo se pueden eliminar pedidos cancelados',
+    );
+  }
+
+  const messagesSnap = await db
+    .collection('messages')
+    .where('orderId', '==', trimmedOrderId)
+    .get();
+
+  const bucket = admin.storage().bucket();
+  const storagePaths = new Set();
+
+  for (const messageDoc of messagesSnap.docs) {
+    const attachments = messageDoc.data()?.attachments;
+    if (!Array.isArray(attachments)) continue;
+    for (const attachment of attachments) {
+      const path = attachment?.storagePath;
+      if (typeof path === 'string' && path.trim()) {
+        storagePaths.add(path.trim());
+      }
+    }
+  }
+
+  for (const storagePath of storagePaths) {
+    try {
+      await bucket.file(storagePath).delete({ignoreNotFound: true});
+    } catch (storageError) {
+      console.warn(
+        '[deleteCancelledOrder] No se pudo borrar archivo:',
+        storagePath,
+        storageError.message,
+      );
+    }
+  }
+
+  try {
+    await bucket.deleteFiles({
+      prefix: `orders/${trimmedOrderId}/`,
+      force: true,
+    });
+  } catch (prefixError) {
+    console.warn(
+      '[deleteCancelledOrder] Prefijo Storage:',
+      prefixError.message,
+    );
+  }
+
+  const messageDocs = messagesSnap.docs;
+  for (let i = 0; i < messageDocs.length; i += 500) {
+    const batch = db.batch();
+    messageDocs.slice(i, i + 500).forEach((doc) => batch.delete(doc.ref));
+    await batch.commit();
+  }
+
+  await orderRef.delete();
+
+  console.log('[deleteCancelledOrder] Pedido eliminado:', trimmedOrderId, {
+    adminId,
+    orderCode: order.orderCode,
+    messagesDeleted: messageDocs.length,
+  });
+
+  return {success: true};
+});
+
+// Elimina un ID de pedido no usado (pendiente de ingreso). Sin pedido ni archivos asociados.
+exports.deleteUnusedOrderCode = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      'unauthenticated',
+      'Debes iniciar sesión para eliminar IDs de pedido',
+    );
+  }
+
+  const adminId = request.auth.uid;
+  await assertAdminUser(adminId);
+
+  const rawCode = request.data?.code;
+  if (!rawCode || typeof rawCode !== 'string' || !rawCode.trim()) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Debes indicar el ID de pedido a eliminar',
+    );
+  }
+
+  const code = rawCode.trim();
+  const codeRef = db.collection('orderCodes').doc(code);
+  const codeSnap = await codeRef.get();
+
+  if (!codeSnap.exists) {
+    throw new HttpsError('not-found', 'ID de pedido no encontrado');
+  }
+
+  const codeData = codeSnap.data();
+  if (codeData?.used === true) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Solo se pueden eliminar IDs pendientes de ingreso',
+    );
+  }
+
+  const ordersSnap = await db
+    .collection('orders')
+    .where('orderCode', '==', code)
+    .limit(1)
+    .get();
+
+  if (!ordersSnap.empty) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Este ID ya tiene un pedido asociado y no se puede eliminar',
+    );
+  }
+
+  await codeRef.delete();
+
+  console.log('[deleteUnusedOrderCode] ID eliminado:', code, {adminId});
+
+  return {success: true, code};
+});
+
 // Mapeo de códigos de estado a texto
 const ESTADOS = {
   1: 'Ingresado',
@@ -180,6 +346,7 @@ const ESTADOS = {
   4: 'Acabados',
   5: 'Empacado',
   6: 'Entregado',
+  7: 'Cancelado',
 };
 
 /** Payload `data.type` para routing en la app (debe coincidir con [FcmNotificationTypes]). */

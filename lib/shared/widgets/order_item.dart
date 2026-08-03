@@ -48,6 +48,13 @@ import 'package:flutter/material.dart';
       Icons.local_shipping_rounded,
     );
   }
+  if (e.contains('cancelado')) {
+    return (
+      const Color(0xFFF5E0E0),
+      const Color(0xFF9B1C1C),
+      Icons.cancel_rounded,
+    );
+  }
   return (
     colorScheme.surfaceContainerHighest,
     colorScheme.onSurfaceVariant,

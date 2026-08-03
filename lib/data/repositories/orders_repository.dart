@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:pedidosapp/data/field_keys.dart';
 import 'package:pedidosapp/data/firestore_collections.dart';
+import 'package:pedidosapp/shared/order_states.dart';
 
 /// Lecturas/escrituras de pedidos, mensajes y códigos de pedido.
 class OrdersRepository {
@@ -85,4 +87,38 @@ class OrdersRepository {
     required String orderId,
     required int state,
   }) => _orders.doc(orderId).update({FirestoreFields.state: state});
+
+  Future<void> cancelOrder({
+    required String orderId,
+    required String reason,
+    required String cancelledByUid,
+  }) =>
+      _orders.doc(orderId).update({
+        FirestoreFields.state: kOrderStateCancelado,
+        FirestoreFields.cancellationReason: reason.trim(),
+        FirestoreFields.cancelledAt: FieldValue.serverTimestamp(),
+        FirestoreFields.cancelledBy: cancelledByUid,
+      });
+
+  /// Elimina un pedido cancelado (mensajes, Storage y documento) vía Cloud Function.
+  Future<void> deleteCancelledOrder({required String orderId}) async {
+    final functions = FirebaseFunctions.instanceFor(
+      app: _db.app,
+      region: 'us-central1',
+    );
+    await functions.httpsCallable('deleteCancelledOrder').call({
+      CloudCallableKeys.orderId: orderId,
+    });
+  }
+
+  /// Elimina un ID de pedido no usado (pendiente de ingreso) vía Cloud Function.
+  Future<void> deleteUnusedOrderCode({required String orderCode}) async {
+    final functions = FirebaseFunctions.instanceFor(
+      app: _db.app,
+      region: 'us-central1',
+    );
+    await functions.httpsCallable('deleteUnusedOrderCode').call({
+      CloudCallableKeys.code: orderCode.trim(),
+    });
+  }
 }

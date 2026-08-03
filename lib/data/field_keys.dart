@@ -24,6 +24,11 @@ abstract final class FirestoreFields {
   static const String token = 'token';
   static const String updatedAt = 'updatedAt';
 
+  /// Motivo ingresado por el admin al cancelar (solo si [state] es cancelado).
+  static const String cancellationReason = 'cancellationReason';
+  static const String cancelledAt = 'cancelledAt';
+  static const String cancelledBy = 'cancelledBy';
+
   // appConfig/settings (actualización forzada)
   /// Si es `false`, no se aplica bloqueo por versión (override de emergencia).
   static const String forceUpdateEnabled = 'forceUpdateEnabled';
@@ -54,4 +59,5 @@ abstract final class AttachmentField {
 abstract final class CloudCallableKeys {
   static const String success = 'success';
   static const String code = 'code';
+  static const String orderId = 'orderId';
 }

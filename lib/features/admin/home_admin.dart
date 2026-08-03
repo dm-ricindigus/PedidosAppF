@@ -10,6 +10,7 @@ import 'package:pedidosapp/features/admin/order_detail_admin.dart';
 import 'package:pedidosapp/features/admin/widgets/home_admin_widgets.dart';
 import 'package:pedidosapp/features/auth/login.dart';
 import 'package:pedidosapp/shared/order_home_list_helpers.dart';
+import 'package:pedidosapp/shared/order_states.dart';
 import 'package:pedidosapp/shared/widgets/logout_confirm_sheet.dart';
 import 'package:pedidosapp/shared/widgets/order_item.dart';
 import 'package:pedidosapp/services/fcm_service.dart';
@@ -32,7 +33,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
   final Map<String, String> _clientEmailByOrderCode = {};
   final Set<String> _clientEmailFetchInFlight = <String>{};
 
-  int _selectedFilterId = 7; // 7 = in progress (all except delivered)
+  int _selectedFilterId = kOrderListFilterInProgress;
   String _sortKey = 'fecha_desc';
 
   @override
@@ -104,24 +105,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
     return cached;
   }
 
-  String _labelForOrderState(int? state) {
-    switch (state) {
-      case 1:
-        return 'Ingresado';
-      case 2:
-        return 'Impresión y Transferencia';
-      case 3:
-        return 'Confección';
-      case 4:
-        return 'Acabados';
-      case 5:
-        return 'Empacado';
-      case 6:
-        return 'Entregado';
-      default:
-        return 'Sin estado';
-    }
-  }
+  String _labelForOrderState(int? state) => orderStateLabel(state);
 
   void _showLogoutConfirmSheet(BuildContext context) {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -185,6 +169,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
     BuildContext context, {
     required String orderCode,
     required String? prefilledClientEmail,
+    bool isPendingUnusedCode = false,
   }) {
     final theme = Theme.of(context);
     final email = prefilledClientEmail?.trim() ?? '';
@@ -259,8 +244,64 @@ class _HomeAdminPageState extends State<HomeAdminPage>
                         }
                       : null,
                 ),
+                if (isPendingUnusedCode && hasOrderId) ...[
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Color(0xFF9B1C1C),
+                    ),
+                    title: const Text(
+                      'Eliminar ID de pedido',
+                      style: TextStyle(color: Color(0xFF9B1C1C)),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _confirmDeleteUnusedOrderCode(context, orderCode: idTrimmed);
+                    },
+                  ),
+                ],
               ],
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteUnusedOrderCode(
+    BuildContext context, {
+    required String orderCode,
+  }) {
+    showAdminDeleteUnusedOrderCodeConfirmSheet(
+      context,
+      orderCode: orderCode,
+      onConfirm: (sheetContext) async {
+        try {
+          await _ordersRepo.deleteUnusedOrderCode(orderCode: orderCode);
+        } catch (e) {
+          if (sheetContext.mounted) {
+            Navigator.pop(sheetContext);
+          }
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No se pudo eliminar el ID: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+
+        if (sheetContext.mounted) {
+          Navigator.pop(sheetContext);
+        }
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('ID de pedido eliminado'),
+            behavior: SnackBarBehavior.floating,
           ),
         );
       },
@@ -332,6 +373,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
                 context,
                 orderCode: code,
                 prefilledClientEmail: pendingEmail,
+                isPendingUnusedCode: true,
               ),
             );
           },
@@ -379,14 +421,16 @@ class _HomeAdminPageState extends State<HomeAdminPage>
 
         if (_selectedFilterId != 0 &&
             _selectedFilterId != kAdminOrderListFilterPendingClientEntry) {
-          if (_selectedFilterId == 7) {
+          if (_selectedFilterId == kOrderListFilterInProgress) {
             orderDocs = orderDocs
-                .where(
-                  (doc) =>
-                      (doc.data()
-                          as Map<String, dynamic>)[FirestoreFields.state] !=
-                      6,
-                )
+                .where((doc) {
+                  final state =
+                      (doc.data() as Map<String, dynamic>)[FirestoreFields
+                          .state] as int? ??
+                      0;
+                  return state != kOrderStateEntregado &&
+                      state != kOrderStateCancelado;
+                })
                 .toList();
           } else {
             orderDocs = orderDocs

@@ -1,32 +1,38 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:pedidosapp/data/field_keys.dart';
+import 'package:pedidosapp/shared/order_states.dart';
 
 /// UI-only filter id (not a Firestore [FirestoreFields.state]). Admin: unused order codes.
 const int kAdminOrderListFilterPendingClientEntry = 8;
 
+/// UI-only filter id for in-progress orders (excludes delivered and cancelled).
+const int kOrderListFilterInProgress = 7;
+
 /// Client home: state filters (no admin-only entries).
 const List<(int, String)> kClientHomeOrderStateFilters = [
   (0, 'Todos'),
-  (7, 'En proceso'),
-  (1, 'Ingresado'),
-  (2, 'Impresión y Transferencia'),
-  (3, 'Confección'),
-  (4, 'Acabados'),
-  (5, 'Empacado'),
-  (6, 'Entregado'),
+  (kOrderListFilterInProgress, 'En proceso'),
+  (kOrderStateIngresado, 'Ingresado'),
+  (kOrderStateImpresionTransferencia, 'Impresión y Transferencia'),
+  (kOrderStateConfeccion, 'Confección'),
+  (kOrderStateAcabados, 'Acabados'),
+  (kOrderStateEmpacado, 'Empacado'),
+  (kOrderStateEntregado, 'Entregado'),
+  (kOrderStateCancelado, 'Cancelado'),
 ];
 
 /// Admin home: same as client plus [kAdminOrderListFilterPendingClientEntry].
 const List<(int, String)> kAdminHomeOrderStateFilters = [
   (0, 'Todos'),
-  (7, 'En proceso'),
-  (1, 'Ingresado'),
-  (2, 'Impresión y Transferencia'),
-  (3, 'Confección'),
-  (4, 'Acabados'),
-  (5, 'Empacado'),
-  (6, 'Entregado'),
+  (kOrderListFilterInProgress, 'En proceso'),
+  (kOrderStateIngresado, 'Ingresado'),
+  (kOrderStateImpresionTransferencia, 'Impresión y Transferencia'),
+  (kOrderStateConfeccion, 'Confección'),
+  (kOrderStateAcabados, 'Acabados'),
+  (kOrderStateEmpacado, 'Empacado'),
+  (kOrderStateEntregado, 'Entregado'),
+  (kOrderStateCancelado, 'Cancelado'),
   (kAdminOrderListFilterPendingClientEntry, 'Pendiente de ingreso'),
 ];
 
@@ -83,8 +89,8 @@ List<QueryDocumentSnapshot> orderListSortedDocuments(
         if (bCreatedAt == null) return -1;
         return bCreatedAt.compareTo(aCreatedAt);
       case 'fecha_entrega':
-        final aIsDelivered = aState == 6;
-        final bIsDelivered = bState == 6;
+        final aIsDelivered = aState == kOrderStateEntregado;
+        final bIsDelivered = bState == kOrderStateEntregado;
         if (aIsDelivered && !bIsDelivered) return 1;
         if (!aIsDelivered && bIsDelivered) return -1;
         final aMaxDelivery =

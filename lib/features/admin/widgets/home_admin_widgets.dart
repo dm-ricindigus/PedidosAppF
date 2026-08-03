@@ -504,3 +504,134 @@ class AdminOrdersEmptyFilter extends StatelessWidget {
     );
   }
 }
+
+Future<void> showAdminDeleteUnusedOrderCodeConfirmSheet(
+  BuildContext context, {
+  required String orderCode,
+  required Future<void> Function(BuildContext sheetContext) onConfirm,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) {
+      final scheme = Theme.of(sheetContext).colorScheme;
+
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 40,
+                    color: Color(0xFF9B1C1C),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Eliminar ID de pedido',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Se eliminará el ID $orderCode. '
+                    'Esta acción no se puede deshacer.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey.shade300,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text('No'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _AdminDeleteUnusedOrderCodeConfirmButton(
+                          onConfirm: () => onConfirm(sheetContext),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _AdminDeleteUnusedOrderCodeConfirmButton extends StatefulWidget {
+  const _AdminDeleteUnusedOrderCodeConfirmButton({required this.onConfirm});
+
+  final Future<void> Function() onConfirm;
+
+  @override
+  State<_AdminDeleteUnusedOrderCodeConfirmButton> createState() =>
+      _AdminDeleteUnusedOrderCodeConfirmButtonState();
+}
+
+class _AdminDeleteUnusedOrderCodeConfirmButtonState
+    extends State<_AdminDeleteUnusedOrderCodeConfirmButton> {
+  bool _isDeleting = false;
+
+  Future<void> _submit() async {
+    setState(() => _isDeleting = true);
+    try {
+      await widget.onConfirm();
+    } finally {
+      if (mounted) {
+        setState(() => _isDeleting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: _isDeleting ? null : _submit,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF9B1C1C),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+      child: _isDeleting
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : const Text('Sí, eliminar'),
+    );
+  }
+}

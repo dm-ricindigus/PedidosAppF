@@ -6,6 +6,8 @@ import 'package:pedidosapp/data/field_keys.dart';
 import 'package:pedidosapp/data/repositories/orders_repository.dart';
 import 'package:pedidosapp/features/client/edit_order_client.dart';
 import 'package:pedidosapp/features/client/message_detail_client.dart';
+import 'package:pedidosapp/shared/order_states.dart';
+import 'package:pedidosapp/shared/widgets/order_cancellation_reason_card.dart';
 import 'package:pedidosapp/shared/widgets/order_message_history_card.dart';
 
 class OrderDetailPage extends StatefulWidget {
@@ -27,6 +29,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? _orderId;
   String _estadoPedido = 'Estado no disponible';
+  int _orderStateCode = 0;
+  String? _cancellationReason;
 
   @override
   void initState() {
@@ -49,9 +53,16 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
       if (pedidoQuery.docs.isNotEmpty) {
         final pedidoData = pedidoQuery.docs.first.data();
         final estado = pedidoData[FirestoreFields.state] as int? ?? 0;
+        final cancellationReason =
+            (pedidoData[FirestoreFields.cancellationReason] as String?)?.trim();
         setState(() {
           _orderId = pedidoQuery.docs.first.id;
-          _estadoPedido = _obtenerEstadoTexto(estado);
+          _orderStateCode = estado;
+          _estadoPedido = orderStateLabel(estado);
+          _cancellationReason =
+              (cancellationReason != null && cancellationReason.isNotEmpty)
+              ? cancellationReason
+              : null;
         });
       }
     } catch (e, st) {
@@ -61,25 +72,6 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
         error: e,
         stackTrace: st,
       );
-    }
-  }
-
-  String _obtenerEstadoTexto(int estado) {
-    switch (estado) {
-      case 1:
-        return 'Ingresado';
-      case 2:
-        return 'Impresión y Transferencia';
-      case 3:
-        return 'Confección';
-      case 4:
-        return 'Acabados';
-      case 5:
-        return 'Empacado';
-      case 6:
-        return 'Entregado';
-      default:
-        return 'Desconocido';
     }
   }
 
@@ -101,6 +93,8 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final canEditOrder = !isOrderCancelled(_orderStateCode);
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLow,
       appBar: AppBar(
@@ -175,7 +169,13 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           );
                         }
 
-                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        final mensajes = snapshot.hasData
+                            ? snapshot.data!.docs
+                            : <QueryDocumentSnapshot>[];
+                        final hasCancellationReason =
+                            (_cancellationReason ?? '').trim().isNotEmpty;
+
+                        if (mensajes.isEmpty && !hasCancellationReason) {
                           return Center(
                             child: Text(
                               'No hay mensajes aún',
@@ -189,43 +189,73 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
                           );
                         }
 
-                        final mensajes = snapshot.data!.docs;
+                        return ListView(
+                          padding: EdgeInsets.only(
+                            bottom: canEditOrder ? 88 : 16,
+                          ),
+                          children: [
+                            if (mensajes.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 24,
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'No hay mensajes aún',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ...mensajes.map((mensajeDoc) {
+                              final data =
+                                  mensajeDoc.data() as Map<String, dynamic>;
+                              final message =
+                                  data[FirestoreFields.message] as String? ??
+                                  '';
+                              final createdAt =
+                                  data[FirestoreFields.createdAt]
+                                      as Timestamp?;
+                              final List<dynamic> attachmentsRaw =
+                                  (data[FirestoreFields.attachments]
+                                      as List<dynamic>?) ??
+                                  [];
+                              final List<String> nombresArchivos =
+                                  attachmentsRaw
+                                      .whereType<Map<String, dynamic>>()
+                                      .map(
+                                        (a) =>
+                                            a[AttachmentField.name] as String?,
+                                      )
+                                      .whereType<String>()
+                                      .toList();
 
-                        return ListView.builder(
-                          padding: const EdgeInsets.only(bottom: 88),
-                          itemCount: mensajes.length,
-                          itemBuilder: (context, index) {
-                            final data =
-                                mensajes[index].data() as Map<String, dynamic>;
-                            final message =
-                                data[FirestoreFields.message] as String? ?? '';
-                            final createdAt =
-                                data[FirestoreFields.createdAt] as Timestamp?;
-                            final List<dynamic> attachmentsRaw =
-                                (data[FirestoreFields.attachments]
-                                        as List<dynamic>?) ??
-                                    [];
-                            final List<String> nombresArchivos = attachmentsRaw
-                                .whereType<Map<String, dynamic>>()
-                                .map((a) => a[AttachmentField.name] as String?)
-                                .whereType<String>()
-                                .toList();
-
-                            final fecha = _formatearFecha(createdAt);
-                            return OrderMessageHistoryCard(
-                              timestampLine: fecha,
-                              bodyPreview: message,
-                              attachmentCount: nombresArchivos.length,
-                              onTap: () {
-                                showClientMessageDetailBottomSheet(
-                                  context,
-                                  fecha: fecha,
-                                  descripcion: message,
-                                  nombresArchivos: nombresArchivos,
-                                );
-                              },
-                            );
-                          },
+                              final fecha = _formatearFecha(createdAt);
+                              return OrderMessageHistoryCard(
+                                timestampLine: fecha,
+                                bodyPreview: message,
+                                attachmentCount: nombresArchivos.length,
+                                onTap: () {
+                                  showClientMessageDetailBottomSheet(
+                                    context,
+                                    fecha: fecha,
+                                    descripcion: message,
+                                    nombresArchivos: nombresArchivos,
+                                  );
+                                },
+                              );
+                            }),
+                            if (hasCancellationReason)
+                              OrderCancellationReasonCard(
+                                reason: _cancellationReason!,
+                              ),
+                          ],
                         );
                       },
                     ),
@@ -233,24 +263,26 @@ class _OrderDetailPageState extends State<OrderDetailPage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => EditOrderClientPage(
-                numeroPedido: widget.numeroPedido,
-                titulo: widget.titulo,
-                estado: _estadoPedido,
-              ),
-            ),
-          );
-        },
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.edit_rounded),
-        label: const Text('Editar pedido'),
-      ),
+      floatingActionButton: canEditOrder
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditOrderClientPage(
+                      numeroPedido: widget.numeroPedido,
+                      titulo: widget.titulo,
+                      estado: _estadoPedido,
+                    ),
+                  ),
+                );
+              },
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.edit_rounded),
+              label: const Text('Editar pedido'),
+            )
+          : null,
     );
   }
 }
