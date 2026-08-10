@@ -1,6 +1,9 @@
 /// Claves de campos en documentos Firestore y mapas relacionados.
 abstract final class FirestoreFields {
   static const String role = 'role';
+
+  /// Cuenta de prueba (App Review / demos). Admins demo solo ven pedidos demo propios.
+  static const String isDemo = 'isDemo';
   static const String email = 'email';
   static const String createdAt = 'createdAt';
   static const String orderCode = 'orderCode';
@@ -16,9 +19,11 @@ abstract final class FirestoreFields {
   static const String usedAt = 'usedAt';
   static const String usedBy = 'usedBy';
   static const String clientEmail = 'clientEmail';
+
   /// UID del admin que generó el código de pedido (en `orderCodes` y copiado a `orders`).
   static const String adminId = 'adminId';
   static const String createdByUid = 'createdByUid';
+
   /// Email del admin que generó el código (copiado desde `orderCodes`, si existe).
   static const String createdByEmail = 'createdByEmail';
   static const String token = 'token';
@@ -32,16 +37,21 @@ abstract final class FirestoreFields {
   // appConfig/settings (actualización forzada)
   /// Si es `false`, no se aplica bloqueo por versión (override de emergencia).
   static const String forceUpdateEnabled = 'forceUpdateEnabled';
+
   /// Versión mínima para ambas plataformas (`major.minor.patch`).
   static const String minVersion = 'minVersion';
   static const String minVersionAndroid = 'minVersionAndroid';
   static const String minVersionIos = 'minVersionIos';
+
   /// `applicationId` publicado en Play Store (p. ej. `com.ricindigus.tsm.pedidosapp.prod`).
   static const String androidPlayStorePackageId = 'androidPlayStorePackageId';
+
   /// URL completa de la ficha en App Store.
   static const String iosStoreUrl = 'iosStoreUrl';
+
   /// Solo el id numérico de App Store Connect (alternativa a [iosStoreUrl]).
   static const String iosAppStoreId = 'iosAppStoreId';
+
   /// Mensaje opcional mostrado en el diálogo.
   static const String forceUpdateMessage = 'forceUpdateMessage';
 }

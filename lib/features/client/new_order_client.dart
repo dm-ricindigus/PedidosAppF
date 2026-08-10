@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pedidosapp/data/field_keys.dart';
 import 'package:pedidosapp/data/repositories/orders_repository.dart';
+import 'package:pedidosapp/shared/demo_users.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:developer' as developer;
@@ -189,8 +190,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
         FirestoreFields.title: titulo,
         FirestoreFields.state: 1, // Estado 1: Ingresado
         FirestoreFields.clientId: user.uid,
-        FirestoreFields.clientEmail:
-            (user.email ?? '').trim().toLowerCase(),
+        FirestoreFields.clientEmail: (user.email ?? '').trim().toLowerCase(),
         FirestoreFields.maxDeliveryDate: Timestamp.fromDate(_fechaMaxEntrega!),
         FirestoreFields.createdAt: FieldValue.serverTimestamp(),
       };
@@ -199,6 +199,9 @@ class _NewOrderPageState extends State<NewOrderPage> {
       }
       if (orderCodeAdminEmail != null && orderCodeAdminEmail.isNotEmpty) {
         orderPayload[FirestoreFields.createdByEmail] = orderCodeAdminEmail;
+      }
+      if (DemoUsers.isDemoFlag(codeSnap.data()?[FirestoreFields.isDemo])) {
+        orderPayload[FirestoreFields.isDemo] = true;
       }
 
       // Crear el documento del pedido

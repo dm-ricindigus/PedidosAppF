@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:pedidosapp/core/email_utils.dart';
 import 'package:pedidosapp/data/field_keys.dart';
 import 'package:pedidosapp/data/repositories/auth_repository.dart';
 import 'package:pedidosapp/data/repositories/orders_repository.dart';
@@ -35,13 +36,33 @@ class _HomeAdminPageState extends State<HomeAdminPage>
 
   int _selectedFilterId = kOrderListFilterInProgress;
   String _sortKey = 'fecha_desc';
+  bool _adminIsDemo = false;
+  bool _adminDemoLoading = true;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadAdminDemoFlag();
     _refreshFcmToken();
   }
+
+  Future<void> _loadAdminDemoFlag() async {
+    final uid = _authRepo.currentUser?.uid;
+    if (uid == null) {
+      if (mounted) setState(() => _adminDemoLoading = false);
+      return;
+    }
+    final isDemo = await _authRepo.isDemoUserForUid(uid);
+    if (mounted) {
+      setState(() {
+        _adminIsDemo = isDemo;
+        _adminDemoLoading = false;
+      });
+    }
+  }
+
+  String? get _adminUid => _authRepo.currentUser?.uid;
 
   @override
   void dispose() {
@@ -325,8 +346,14 @@ class _HomeAdminPageState extends State<HomeAdminPage>
         ),
       );
     }
+    if (_adminDemoLoading || _adminUid == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _ordersRepo.watchAllUnusedOrderCodesCreatedAtDesc(),
+      stream: _ordersRepo.watchAdminUnusedOrderCodesCreatedAtDesc(
+        adminIsDemo: _adminIsDemo,
+        adminId: _adminUid!,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -346,7 +373,18 @@ class _HomeAdminPageState extends State<HomeAdminPage>
         }
 
         final List<QueryDocumentSnapshot> unusedCodeDocs =
-            List<QueryDocumentSnapshot>.from(snapshot.data!.docs);
+            OrdersRepository.hideDemoDocumentsForProductionAdmin(
+              adminIsDemo: _adminIsDemo,
+              documents: _adminIsDemo
+                  ? OrdersRepository.filterUnusedOrderCodes(
+                      List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+                        snapshot.data!.docs,
+                      ),
+                    )
+                  : List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+                      snapshot.data!.docs,
+                    ),
+            );
 
         return ListView.builder(
           padding: const EdgeInsets.only(bottom: 8),
@@ -396,8 +434,14 @@ class _HomeAdminPageState extends State<HomeAdminPage>
         ),
       );
     }
+    if (_adminDemoLoading || _adminUid == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _ordersRepo.watchAllOrdersCreatedAtDesc(),
+      stream: _ordersRepo.watchAdminOrdersCreatedAtDesc(
+        adminIsDemo: _adminIsDemo,
+        adminId: _adminUid!,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -417,7 +461,12 @@ class _HomeAdminPageState extends State<HomeAdminPage>
         }
 
         List<QueryDocumentSnapshot> orderDocs =
-            List<QueryDocumentSnapshot>.from(snapshot.data!.docs);
+            OrdersRepository.hideDemoDocumentsForProductionAdmin(
+              adminIsDemo: _adminIsDemo,
+              documents: List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(
+                snapshot.data!.docs,
+              ),
+            );
 
         if (_selectedFilterId != 0 &&
             _selectedFilterId != kAdminOrderListFilterPendingClientEntry) {
@@ -487,6 +536,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
                       orderDisplayLine: orderDisplayLine,
                       title: orderTitle,
                       initialStateLabel: _labelForOrderState(state),
+                      initialOrderId: orderDocs[index].id,
                     ),
                   ),
                 );
@@ -504,12 +554,15 @@ class _HomeAdminPageState extends State<HomeAdminPage>
   }
 
   Future<void> _createOrderCode(String email, BuildContext sheetContext) async {
-    if (email.isEmpty) {
+    final validationError = EmailUtils.validationError(email);
+    if (validationError != null) {
       if (sheetContext.mounted) {
-        await showAdminErrorSheet(sheetContext, 'Por favor ingresa un correo');
+        await showAdminErrorSheet(sheetContext, validationError);
       }
       return;
     }
+
+    final normalizedEmail = EmailUtils.normalize(email);
 
     final functions = FirebaseFunctions.instanceFor(
       app: _authRepo.firebaseApp,
@@ -538,14 +591,14 @@ class _HomeAdminPageState extends State<HomeAdminPage>
       }
 
       developer.log('✅ Token obtenido', name: 'CreateOrderCode');
-      developer.log('📧 Email del cliente: $email', name: 'CreateOrderCode');
+      developer.log('📧 Email del cliente: $normalizedEmail', name: 'CreateOrderCode');
 
       final HttpsCallable callable = functions.httpsCallable('createOrderCode');
 
       developer.log('📞 Llamando a Cloud Function...', name: 'CreateOrderCode');
 
       final result = await callable.call({
-        'clientEmail': email,
+        'clientEmail': normalizedEmail,
         '_authToken': idToken,
       });
 

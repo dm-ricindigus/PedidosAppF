@@ -10,6 +10,31 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function userIsDemo() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid))
+        .data.get('isDemo', false) == true;
+    }
+
+    function isDemoAdmin() {
+      return isAdmin() && userIsDemo();
+    }
+
+    function canAdminAccessOrder(orderData) {
+      return isAdmin() && (
+        !isDemoAdmin() ||
+        (orderData.get('isDemo', false) == true &&
+          orderData.adminId == request.auth.uid)
+      );
+    }
+
+    function canAdminAccessOrderCode(codeData) {
+      return isAdmin() && (
+        !isDemoAdmin() ||
+        (codeData.get('isDemo', false) == true &&
+          codeData.adminId == request.auth.uid)
+      );
+    }
+
     function isOwner(uid) {
       return isSignedIn() && request.auth.uid == uid;
     }
@@ -22,7 +47,10 @@ service cloud.firestore {
 
     // Reglas para códigos de pedido
     match /orderCodes/{codeId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.clientEmail == request.auth.token.email ||
+        canAdminAccessOrderCode(resource.data)
+      );
 
       // Solo Cloud Functions pueden crear códigos
       allow create: if false;
@@ -42,15 +70,17 @@ service cloud.firestore {
     // Reglas para pedidos
     match /orders/{orderId} {
       allow read: if isSignedIn() &&
-        (resource.data.clientId == request.auth.uid || isAdmin());
+        (resource.data.clientId == request.auth.uid ||
+          canAdminAccessOrder(resource.data));
 
       allow create: if isSignedIn() &&
         request.resource.data.clientId == request.auth.uid;
 
       allow update: if isSignedIn() &&
-        (resource.data.clientId == request.auth.uid || isAdmin());
+        (resource.data.clientId == request.auth.uid ||
+          canAdminAccessOrder(resource.data));
 
-      allow delete: if isAdmin();
+      allow delete: if canAdminAccessOrder(resource.data);
     }
 
     // Reglas para mensajes
@@ -59,18 +89,27 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         (
           get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data.clientId == request.auth.uid ||
-          isAdmin()
+          canAdminAccessOrder(
+            get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data
+          )
         );
 
       allow read: if isSignedIn() && (
         get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data.clientId == request.auth.uid ||
-        isAdmin()
+        canAdminAccessOrder(
+          get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data
+        )
       );
 
       allow update: if isSignedIn() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
+        (resource.data.userId == request.auth.uid ||
+          canAdminAccessOrder(
+            get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data
+          ));
 
-      allow delete: if isAdmin();
+      allow delete: if canAdminAccessOrder(
+        get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data
+      );
     }
 
     // Tokens FCM para notificaciones push (el cliente guarda su token)

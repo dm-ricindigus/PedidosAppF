@@ -10,11 +10,9 @@ import 'package:pedidosapp/services/fcm_service.dart';
 /// Acceso a Firebase Auth y documento de usuario en Firestore.
 /// Las pantallas llaman aquí en lugar de usar [FirebaseAuth] / [FirebaseFirestore] directo.
 class AuthRepository {
-  AuthRepository({
-    FirebaseAuth? auth,
-    FirebaseFirestore? firestore,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  AuthRepository({FirebaseAuth? auth, FirebaseFirestore? firestore})
+    : _auth = auth ?? FirebaseAuth.instance,
+      _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _firestore;
@@ -42,11 +40,23 @@ class AuthRepository {
 
   /// Rol en `users/{uid}`; por defecto `client`.
   Future<String> getRoleForUid(String uid) async {
-    final doc =
-        await _firestore.collection(FirestoreCollections.users).doc(uid).get();
+    final doc = await _firestore
+        .collection(FirestoreCollections.users)
+        .doc(uid)
+        .get();
     if (!doc.exists || doc.data() == null) return 'client';
     final data = doc.data()!;
     return (data[FirestoreFields.role] as String?) ?? 'client';
+  }
+
+  /// `false` si el campo no existe (usuarios de producción existentes).
+  Future<bool> isDemoUserForUid(String uid) async {
+    final doc = await _firestore
+        .collection(FirestoreCollections.users)
+        .doc(uid)
+        .get();
+    if (!doc.exists || doc.data() == null) return false;
+    return doc.data()![FirestoreFields.isDemo] == true;
   }
 
   Future<void> createClientProfile({
@@ -116,10 +126,7 @@ class AuthRepository {
       );
     }
 
-    await reauthenticateWithPassword(
-      email: user.email!,
-      password: password,
-    );
+    await reauthenticateWithPassword(email: user.email!, password: password);
 
     await FcmService.removeToken(uid);
 

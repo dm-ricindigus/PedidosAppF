@@ -21,6 +21,16 @@ function generarCodigoUnico() {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
+function normalizeClientEmail(rawEmail) {
+  if (typeof rawEmail !== 'string') return '';
+  return rawEmail.trim().toLowerCase();
+}
+
+function isValidClientEmail(rawEmail) {
+  const email = normalizeClientEmail(rawEmail);
+  return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(email);
+}
+
 
 // Cloud Function para crear código de pedido
 exports.createOrderCode = onCall(async (request) => {
@@ -76,14 +86,17 @@ exports.createOrderCode = onCall(async (request) => {
       createdByEmail = String(userData.email).trim().toLowerCase();
     }
 
+    const adminIsDemo = userData.isDemo === true;
+
     // Validar datos de entrada
     const clientEmail = data.clientEmail;
-    if (!clientEmail || typeof clientEmail !== 'string' || !clientEmail.includes('@')) {
+    if (!isValidClientEmail(clientEmail)) {
       throw new HttpsError(
         'invalid-argument',
-        'Debes proporcionar un email válido del cliente'
+        'Debes proporcionar un correo electrónico válido del cliente',
       );
     }
+    const normalizedClientEmail = normalizeClientEmail(clientEmail);
 
     // Generar código único (intentar hasta encontrar uno disponible)
     let codigo;
@@ -100,10 +113,11 @@ exports.createOrderCode = onCall(async (request) => {
         // Código único encontrado, guardarlo
         await db.collection('orderCodes').doc(codigo).set({
           code: codigo,
-          clientEmail: clientEmail.trim().toLowerCase(),
+          clientEmail: normalizedClientEmail,
           adminId: adminId,
           createdByUid: adminId,
           createdByEmail: createdByEmail || null,
+          isDemo: adminIsDemo,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           used: false,
         });
@@ -111,7 +125,7 @@ exports.createOrderCode = onCall(async (request) => {
         return {
           success: true,
           code: codigo,
-          clientEmail: clientEmail.trim().toLowerCase(),
+          clientEmail: normalizedClientEmail,
         };
       }
       
@@ -186,6 +200,26 @@ async function assertAdminUser(uid) {
       'Solo los administradores pueden realizar esta acción',
     );
   }
+  return userDoc.data();
+}
+
+function assertAdminCanAccessDemoData(adminId, adminData, resourceData) {
+  const adminIsDemo = adminData?.isDemo === true;
+  if (adminIsDemo) {
+    if (resourceData?.isDemo !== true || resourceData?.adminId !== adminId) {
+      throw new HttpsError(
+        'permission-denied',
+        'Solo puedes gestionar pedidos e IDs de prueba propios',
+      );
+    }
+    return;
+  }
+  if (resourceData?.isDemo === true) {
+    throw new HttpsError(
+      'permission-denied',
+      'Los administradores de producción no pueden modificar datos de prueba',
+    );
+  }
 }
 
 // Elimina un pedido cancelado: mensajes, archivos en Storage y documento del pedido.
@@ -198,7 +232,7 @@ exports.deleteCancelledOrder = onCall(async (request) => {
   }
 
   const adminId = request.auth.uid;
-  await assertAdminUser(adminId);
+  const adminData = await assertAdminUser(adminId);
 
   const orderId = request.data?.orderId;
   if (!orderId || typeof orderId !== 'string' || !orderId.trim()) {
@@ -214,6 +248,7 @@ exports.deleteCancelledOrder = onCall(async (request) => {
   }
 
   const order = orderSnap.data();
+  assertAdminCanAccessDemoData(adminId, adminData, order);
   if (order.state !== ORDER_STATE_CANCELADO) {
     throw new HttpsError(
       'failed-precondition',
@@ -292,7 +327,7 @@ exports.deleteUnusedOrderCode = onCall(async (request) => {
   }
 
   const adminId = request.auth.uid;
-  await assertAdminUser(adminId);
+  const adminData = await assertAdminUser(adminId);
 
   const rawCode = request.data?.code;
   if (!rawCode || typeof rawCode !== 'string' || !rawCode.trim()) {
@@ -311,6 +346,7 @@ exports.deleteUnusedOrderCode = onCall(async (request) => {
   }
 
   const codeData = codeSnap.data();
+  assertAdminCanAccessDemoData(adminId, adminData, codeData);
   if (codeData?.used === true) {
     throw new HttpsError(
       'failed-precondition',

@@ -15,11 +15,15 @@ class OrderDetailAdminPage extends StatefulWidget {
   final String title;
   final String? initialStateLabel;
 
+  /// ID del documento en `orders` (evita consultas por código bloqueadas en admin demo).
+  final String? initialOrderId;
+
   const OrderDetailAdminPage({
     super.key,
     required this.orderDisplayLine,
     required this.title,
     this.initialStateLabel,
+    this.initialOrderId,
   });
 
   @override
@@ -110,14 +114,28 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
   }
 
   Future<void> _loadOrder() async {
-    final orderCode = _parseOrderCodeFromDisplayLine(widget.orderDisplayLine);
-
     try {
-      final orderQuery = await _ordersRepo.ordersByCode(orderCode);
+      DocumentSnapshot<Map<String, dynamic>>? orderDoc;
+
+      final initialOrderId = widget.initialOrderId?.trim();
+      if (initialOrderId != null && initialOrderId.isNotEmpty) {
+        orderDoc = await _ordersRepo.getOrder(initialOrderId);
+        if (!orderDoc.exists) {
+          orderDoc = null;
+        }
+      } else {
+        final orderCode = _parseOrderCodeFromDisplayLine(
+          widget.orderDisplayLine,
+        );
+        final orderQuery = await _ordersRepo.ordersByCode(orderCode);
+        if (orderQuery.docs.isNotEmpty) {
+          orderDoc = orderQuery.docs.first;
+        }
+      }
 
       if (!mounted) return;
 
-      if (orderQuery.docs.isEmpty) {
+      if (orderDoc == null || !orderDoc.exists) {
         setState(() {
           _orderId = null;
           _clientEmail = null;
@@ -126,20 +144,18 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
         return;
       }
 
-      final orderDoc = orderQuery.docs.first;
-      final orderData = orderDoc.data();
+      final orderData = orderDoc.data()!;
       final state = orderData[FirestoreFields.state] as int?;
       final maxDeliveryDate =
           orderData[FirestoreFields.maxDeliveryDate] as Timestamp?;
       final rawEmail = orderData[FirestoreFields.clientEmail];
-      final emailStr =
-          rawEmail == null ? '' : rawEmail.toString().trim();
+      final emailStr = rawEmail == null ? '' : rawEmail.toString().trim();
       final clientEmail = emailStr.isNotEmpty ? emailStr : null;
       final cancellationReason =
           (orderData[FirestoreFields.cancellationReason] as String?)?.trim();
 
       setState(() {
-        _orderId = orderDoc.id;
+        _orderId = orderDoc!.id;
         _clientEmail = clientEmail;
         _currentStateCode = state ?? kOrderStateIngresado;
         _currentStateLabel = _labelForStateCode(state);
@@ -322,9 +338,9 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
           Navigator.pop(sheetContext);
         }
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pedido eliminado')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pedido eliminado')));
       },
     );
   }
@@ -335,8 +351,9 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
     showAdminOrderStatePickerSheet(
       context,
       pipelineStateLabels: kOrderPipelineStateLabels,
-      cancelStateLabel:
-          canCancelOrder(_currentStateCode) ? kOrderStateCanceladoLabel : null,
+      cancelStateLabel: canCancelOrder(_currentStateCode)
+          ? kOrderStateCanceladoLabel
+          : null,
       currentStateLabel: _currentStateLabel,
       onStateSelected: _onStateSelected,
     );
@@ -405,10 +422,12 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
             chipIcon: chipIcon,
             textTheme: textTheme,
             onSurfaceVariant: theme.colorScheme.onSurfaceVariant,
-            onTapChangeState:
-                _isStateChangeEnabled ? _showStatePickerSheet : null,
-            clientEmail:
-                (!_loadingOrder && _orderId != null) ? _clientEmail : null,
+            onTapChangeState: _isStateChangeEnabled
+                ? _showStatePickerSheet
+                : null,
+            clientEmail: (!_loadingOrder && _orderId != null)
+                ? _clientEmail
+                : null,
           ),
           Expanded(
             child: Padding(
@@ -464,8 +483,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
                                   child: Text(
                                     'No hay mensajes aún',
                                     style: textTheme.bodyMedium?.copyWith(
-                                      color:
-                                          theme.colorScheme.onSurfaceVariant,
+                                      color: theme.colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ),
@@ -477,8 +495,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
                                 data[FirestoreFields.createdAt] as Timestamp?,
                               );
                               final bodyPreview =
-                                  (data[FirestoreFields.message]
-                                      as String?) ??
+                                  (data[FirestoreFields.message] as String?) ??
                                   '';
                               final attachments =
                                   (data[FirestoreFields.attachments]
@@ -489,9 +506,8 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
                                 timestampLine: timestampLine,
                                 bodyPreview: bodyPreview,
                                 attachmentCount: attachments.length,
-                                onTap: () => _openAdminMessageDetailSheet(
-                                  messageDoc.id,
-                                ),
+                                onTap: () =>
+                                    _openAdminMessageDetailSheet(messageDoc.id),
                               );
                             }),
                             if (hasCancellationReason)

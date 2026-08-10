@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pedidosapp/core/no_emoji_text_input_formatter.dart';
+import 'package:pedidosapp/core/email_utils.dart';
 
 /// Bottom sheet: generated order code + copy.
 class AdminOrderCodeCreatedSheet extends StatelessWidget {
@@ -177,6 +178,7 @@ class _AdminCreateOrderCodeSheetState extends State<AdminCreateOrderCodeSheet> {
   }
 
   bool _loading = false;
+  String? _emailErrorText;
 
   @override
   void dispose() {
@@ -185,9 +187,19 @@ class _AdminCreateOrderCodeSheetState extends State<AdminCreateOrderCodeSheet> {
   }
 
   Future<void> _submit() async {
-    setState(() => _loading = true);
+    final email = _controller.text.trim();
+    final error = EmailUtils.validationError(email);
+    if (error != null) {
+      setState(() => _emailErrorText = error);
+      return;
+    }
+
+    setState(() {
+      _emailErrorText = null;
+      _loading = true;
+    });
     try {
-      await widget.onSubmit(_controller.text.trim(), context);
+      await widget.onSubmit(EmailUtils.normalize(email), context);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -227,12 +239,23 @@ class _AdminCreateOrderCodeSheetState extends State<AdminCreateOrderCodeSheet> {
                   child: TextField(
                     controller: _controller,
                     keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    autofillHints: const [AutofillHints.email],
                   enabled: !_loading,
-                  inputFormatters: const [NoEmojiTextInputFormatter()],
+                  inputFormatters: [
+                    const NoEmojiTextInputFormatter(),
+                    FilteringTextInputFormatter.deny(RegExp(r'\s')),
+                  ],
+                  onChanged: (_) {
+                    if (_emailErrorText != null) {
+                      setState(() => _emailErrorText = null);
+                    }
+                  },
                   decoration: InputDecoration(
                     filled: true,
                     fillColor: Colors.grey.shade200,
-                    hintText: 'Correo del cliente',
+                    hintText: 'ejemplo@correo.com',
+                    errorText: _emailErrorText,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 2,
