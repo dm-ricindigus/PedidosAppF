@@ -47,7 +47,15 @@ service cloud.firestore {
 
     // Reglas para códigos de pedido
     match /orderCodes/{codeId} {
-      allow read: if isSignedIn() && (
+      // Permite get cuando el doc no existe (para mostrar "código no existe")
+      // sin permission-denied. Si existe, solo el cliente dueño o admin demo/prod.
+      allow get: if isSignedIn() && (
+        !exists(/databases/$(database)/documents/orderCodes/$(codeId)) ||
+        resource.data.clientEmail == request.auth.token.email ||
+        canAdminAccessOrderCode(resource.data)
+      );
+
+      allow list: if isSignedIn() && (
         resource.data.clientEmail == request.auth.token.email ||
         canAdminAccessOrderCode(resource.data)
       );

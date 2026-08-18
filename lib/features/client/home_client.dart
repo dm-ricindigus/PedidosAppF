@@ -17,6 +17,24 @@ import 'package:pedidosapp/services/fcm_service.dart';
 import 'package:pedidosapp/services/force_update_service.dart';
 import 'dart:developer' as developer;
 
+String _messageForOrderCodeError(Object e) {
+  if (e is FirebaseException) {
+    switch (e.code) {
+      case 'permission-denied':
+        return 'El código no existe o no está asociado a tu cuenta de correo';
+      case 'unavailable':
+        return 'Sin conexión con el servidor. Revisa tu internet e inténtalo de nuevo';
+      default:
+        break;
+    }
+  }
+  if (e is Exception) {
+    final text = e.toString().replaceFirst('Exception: ', '');
+    if (text.isNotEmpty && text != e.toString()) return text;
+  }
+  return 'Error al validar el código. Inténtalo de nuevo';
+}
+
 class HomeClientPage extends StatefulWidget {
   const HomeClientPage({super.key});
 
@@ -201,10 +219,7 @@ class _HomeClientPageState extends State<HomeClientPage>
         name: 'ValidateOrderCode',
       );
 
-      String errorMessage = 'Error al validar el código';
-      if (e is Exception) {
-        errorMessage = e.toString().replaceFirst('Exception: ', '');
-      }
+      String errorMessage = _messageForOrderCodeError(e);
 
       developer.log(
         '📝 Mensaje de error a mostrar: $errorMessage',
