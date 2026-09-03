@@ -100,6 +100,10 @@ service cloud.firestore {
           canAdminAccessOrder(
             get(/databases/$(database)/documents/orders/$(request.resource.data.orderId)).data
           )
+        ) &&
+        (
+          !('readByAdmin' in request.resource.data) ||
+          request.resource.data.readByAdmin == false
         );
 
       allow read: if isSignedIn() && (
@@ -110,10 +114,22 @@ service cloud.firestore {
       );
 
       allow update: if isSignedIn() &&
-        (resource.data.userId == request.auth.uid ||
-          canAdminAccessOrder(
-            get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data
-          ));
+        (
+          (
+            resource.data.userId == request.auth.uid &&
+            !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['readByAdmin', 'readByAdminAt'])
+          ) ||
+          (
+            canAdminAccessOrder(
+              get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data
+            ) &&
+            resource.data.get('readByAdmin', true) == false &&
+            request.resource.data.readByAdmin == true &&
+            !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['orderId', 'userId', 'message', 'attachments', 'createdAt'])
+          )
+        );
 
       allow delete: if canAdminAccessOrder(
         get(/databases/$(database)/documents/orders/$(resource.data.orderId)).data

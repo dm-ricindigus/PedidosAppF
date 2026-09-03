@@ -10,6 +10,7 @@ import 'package:pedidosapp/data/repositories/orders_repository.dart';
 import 'package:pedidosapp/features/admin/order_detail_admin.dart';
 import 'package:pedidosapp/features/admin/widgets/home_admin_widgets.dart';
 import 'package:pedidosapp/features/auth/login.dart';
+import 'package:pedidosapp/shared/message_read_utils.dart';
 import 'package:pedidosapp/shared/order_home_list_helpers.dart';
 import 'package:pedidosapp/shared/order_states.dart';
 import 'package:pedidosapp/shared/widgets/logout_confirm_sheet.dart';
@@ -521,6 +522,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
             final String orderDisplayLine = 'Pedido Nº $orderCode';
             final String? listClientEmail =
                 _clientEmailForOrderListItem(data, orderCode.trim());
+            final unreadCount = adminUnreadMessageCountFromOrder(data);
 
             return OrderItem(
               numeroPedido: orderDisplayLine,
@@ -528,6 +530,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
               estado: _labelForOrderState(state),
               clientEmail: listClientEmail,
               fechaMaxEntrega: maxDeliveryDate,
+              adminUnreadMessageCount: unreadCount,
               onTap: () {
                 Navigator.push(
                   context,

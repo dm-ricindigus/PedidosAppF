@@ -15,6 +15,14 @@ abstract final class FirestoreFields {
   static const String message = 'message';
   static const String userId = 'userId';
   static const String attachments = 'attachments';
+
+  /// `false` = no leído por admin; ausente en mensajes viejos = leído.
+  static const String readByAdmin = 'readByAdmin';
+  static const String readByAdminAt = 'readByAdminAt';
+
+  /// Contador denormalizado en `orders` (mensajes con [readByAdmin] == false).
+  static const String adminUnreadMessageCount = 'adminUnreadMessageCount';
+
   static const String used = 'used';
   static const String usedAt = 'usedAt';
   static const String usedBy = 'usedBy';

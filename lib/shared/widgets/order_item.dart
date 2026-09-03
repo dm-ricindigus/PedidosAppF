@@ -73,6 +73,8 @@ class OrderItem extends StatelessWidget {
   final DateTime? fechaCreado;
   /// Solo número, título y línea de fecha; sin chip de estado.
   final bool hideEstadoChip;
+  /// Mensajes del cliente sin abrir por el admin (badge en lista).
+  final int adminUnreadMessageCount;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
 
@@ -85,6 +87,7 @@ class OrderItem extends StatelessWidget {
     this.fechaMaxEntrega,
     this.fechaCreado,
     this.hideEstadoChip = false,
+    this.adminUnreadMessageCount = 0,
     this.onTap,
     this.onLongPress,
   });
@@ -180,6 +183,38 @@ class OrderItem extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (adminUnreadMessageCount > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3E0),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.mark_email_unread_rounded,
+                          size: 16,
+                          color: colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          adminUnreadMessageCount == 1
+                              ? 'Mensaje nuevo'
+                              : '$adminUnreadMessageCount mensajes nuevos',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ],

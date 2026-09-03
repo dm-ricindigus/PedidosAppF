@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,6 +7,7 @@ import 'package:pedidosapp/data/field_keys.dart';
 import 'package:pedidosapp/data/repositories/orders_repository.dart';
 import 'package:pedidosapp/features/admin/message_detail_admin.dart';
 import 'package:pedidosapp/features/admin/widgets/order_detail_admin_widgets.dart';
+import 'package:pedidosapp/shared/message_read_utils.dart';
 import 'package:pedidosapp/shared/order_states.dart';
 import 'package:pedidosapp/shared/widgets/order_cancellation_reason_card.dart';
 import 'package:pedidosapp/shared/widgets/order_item.dart';
@@ -42,6 +45,14 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
   Timestamp? _maxDeliveryDate;
   bool _loadingOrder = true;
 
+  String? get _resolvedOrderId {
+    final fromState = _orderId?.trim();
+    if (fromState != null && fromState.isNotEmpty) return fromState;
+    final fromRoute = widget.initialOrderId?.trim();
+    if (fromRoute != null && fromRoute.isNotEmpty) return fromRoute;
+    return null;
+  }
+
   /// Borde inferior del AppBar en coordenadas globales (para alinear el sheet).
   double _messageDetailSheetTopInsetPx() {
     final box =
@@ -53,7 +64,10 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
         kOrderDetailAdminAppBarToolbarHeight;
   }
 
-  void _openAdminMessageDetailSheet(String messageId) {
+  void _openAdminMessageDetailSheet(
+    String messageId, {
+    required bool markReadIfUnread,
+  }) {
     void open() {
       if (!mounted) return;
       showAdminMessageDetailBottomSheet(
@@ -71,6 +85,25 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
     } else {
       open();
     }
+
+    if (!markReadIfUnread) return;
+
+    final orderId = _resolvedOrderId;
+    if (orderId == null) return;
+
+    unawaited(
+      _ordersRepo
+          .markMessageReadByAdmin(messageId: messageId, orderId: orderId)
+          .catchError((Object e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('No se pudo marcar el mensaje como leído: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }),
+    );
   }
 
   @override
@@ -506,8 +539,11 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
                                 timestampLine: timestampLine,
                                 bodyPreview: bodyPreview,
                                 attachmentCount: attachments.length,
-                                onTap: () =>
-                                    _openAdminMessageDetailSheet(messageDoc.id),
+                                isUnread: isMessageUnreadByAdmin(data),
+                                onTap: () => _openAdminMessageDetailSheet(
+                                  messageDoc.id,
+                                  markReadIfUnread: isMessageUnreadByAdmin(data),
+                                ),
                               );
                             }),
                             if (hasCancellationReason)

@@ -9,12 +9,14 @@ class OrderMessageHistoryCard extends StatelessWidget {
     required this.bodyPreview,
     required this.attachmentCount,
     required this.onTap,
+    this.isUnread = false,
   });
 
   final String timestampLine;
   final String bodyPreview;
   final int attachmentCount;
   final VoidCallback onTap;
+  final bool isUnread;
 
   @override
   Widget build(BuildContext context) {
@@ -33,25 +35,60 @@ class OrderMessageHistoryCard extends StatelessWidget {
         child: Card(
           elevation: 0,
           margin: EdgeInsets.zero,
-          color: Theme.of(context).scaffoldBackgroundColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          color: isUnread
+              ? colorScheme.primaryContainer.withValues(alpha: 0.35)
+              : Theme.of(context).scaffoldBackgroundColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: isUnread
+                ? BorderSide(color: colorScheme.primary.withValues(alpha: 0.4))
+                : BorderSide.none,
+          ),
           clipBehavior: Clip.antiAlias,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  timestampLine,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        timestampLine,
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                              fontWeight:
+                                  isUnread ? FontWeight.w700 : FontWeight.w400,
+                            ),
                       ),
+                    ),
+                    if (isUnread)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          'Nuevo',
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: colorScheme.onPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
                   bodyPreview,
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
+                        fontWeight: isUnread ? FontWeight.w700 : FontWeight.w600,
                       ),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,

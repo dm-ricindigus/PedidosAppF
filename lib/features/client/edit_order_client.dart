@@ -299,6 +299,7 @@ class _EditOrderClientPageState extends State<EditOrderClientPage> {
             )
             .toList(),
         FirestoreFields.createdAt: FieldValue.serverTimestamp(),
+        FirestoreFields.readByAdmin: false,
       });
 
       developer.log(

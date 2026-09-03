@@ -230,6 +230,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
             )
             .toList(),
         FirestoreFields.createdAt: FieldValue.serverTimestamp(),
+        FirestoreFields.readByAdmin: false,
       });
 
       developer.log(

@@ -515,6 +515,10 @@ exports.onClientMessageNotifyAdmin = onDocumentCreated(
       return;
     }
 
+    await orderRef.update({
+      adminUnreadMessageCount: admin.firestore.FieldValue.increment(1),
+    });
+
     const countSnap = await db
       .collection('messages')
       .where('orderId', '==', orderId)
@@ -523,7 +527,7 @@ exports.onClientMessageNotifyAdmin = onDocumentCreated(
 
     if (countSnap.size <= 1) {
       console.log(
-        '[onClientMessageNotifyAdmin] Primer mensaje del pedido (ya notifica creación), omitiendo',
+        '[onClientMessageNotifyAdmin] Primer mensaje del pedido (ya notifica creación), omitiendo push',
       );
       return;
     }

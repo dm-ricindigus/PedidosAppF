@@ -153,6 +153,38 @@ class OrdersRepository {
     FirestoreFields.cancelledBy: cancelledByUid,
   });
 
+  /// Marca un mensaje como leído por el admin y decrementa el contador del pedido.
+  Future<void> markMessageReadByAdmin({
+    required String messageId,
+    required String orderId,
+  }) async {
+    final msgDocRef = messageRef(messageId);
+    final msgSnap = await msgDocRef.get();
+    if (!msgSnap.exists) return;
+
+    final msgData = msgSnap.data()!;
+
+    // Solo mensajes nuevos con readByAdmin == false. Legacy sin campo = ya leídos.
+    if (msgData[FirestoreFields.readByAdmin] != false) return;
+
+    await msgDocRef.update({
+      FirestoreFields.readByAdmin: true,
+      FirestoreFields.readByAdminAt: FieldValue.serverTimestamp(),
+    });
+
+    final orderDocRef = orderRef(orderId);
+    final orderSnap = await orderDocRef.get();
+    if (!orderSnap.exists) return;
+
+    final raw = orderSnap.data()?[FirestoreFields.adminUnreadMessageCount];
+    final current = raw is num ? raw.toInt() : 0;
+    if (current <= 0) return;
+
+    await orderDocRef.update({
+      FirestoreFields.adminUnreadMessageCount: current - 1,
+    });
+  }
+
   /// Elimina un pedido cancelado (mensajes, Storage y documento) vía Cloud Function.
   Future<void> deleteCancelledOrder({required String orderId}) async {
     final functions = FirebaseFunctions.instanceFor(
