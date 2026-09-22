@@ -85,8 +85,14 @@ service cloud.firestore {
         request.resource.data.clientId == request.auth.uid;
 
       allow update: if isSignedIn() &&
-        (resource.data.clientId == request.auth.uid ||
-          canAdminAccessOrder(resource.data));
+        (
+          (
+            resource.data.clientId == request.auth.uid &&
+            !request.resource.data.diff(resource.data).affectedKeys()
+              .hasAny(['isPaid', 'paidAt', 'paidBy'])
+          ) ||
+          canAdminAccessOrder(resource.data)
+        );
 
       allow delete: if canAdminAccessOrder(resource.data);
     }

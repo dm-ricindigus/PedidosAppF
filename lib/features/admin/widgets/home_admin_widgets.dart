@@ -528,6 +528,141 @@ class AdminOrdersEmptyFilter extends StatelessWidget {
   }
 }
 
+Future<void> showAdminOrderPaidConfirmSheet(
+  BuildContext context, {
+  required String orderDisplayLine,
+  required Future<void> Function(BuildContext sheetContext) onConfirm,
+}) {
+  const paidGreen = Color(0xFF1E6B36);
+
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) {
+      final scheme = Theme.of(sheetContext).colorScheme;
+
+      return Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.paid_rounded,
+                    size: 40,
+                    color: paidGreen,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Marcar como pagado',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '¿Confirmas que $orderDisplayLine está pagado?',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey.shade300,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: const Text('Cancelar'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _AdminOrderPaidConfirmButton(
+                          onConfirm: () => onConfirm(sheetContext),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _AdminOrderPaidConfirmButton extends StatefulWidget {
+  const _AdminOrderPaidConfirmButton({required this.onConfirm});
+
+  final Future<void> Function() onConfirm;
+
+  @override
+  State<_AdminOrderPaidConfirmButton> createState() =>
+      _AdminOrderPaidConfirmButtonState();
+}
+
+class _AdminOrderPaidConfirmButtonState
+    extends State<_AdminOrderPaidConfirmButton> {
+  bool _busy = false;
+
+  Future<void> _submit() async {
+    setState(() => _busy = true);
+    try {
+      await widget.onConfirm();
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: _busy ? null : _submit,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF1E6B36),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+      child: _busy
+          ? const SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : const Text('Sí, marcar pagado'),
+    );
+  }
+}
+
 Future<void> showAdminDeleteUnusedOrderCodeConfirmSheet(
   BuildContext context, {
   required String orderCode,

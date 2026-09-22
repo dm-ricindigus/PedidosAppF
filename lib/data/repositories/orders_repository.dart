@@ -153,6 +153,17 @@ class OrdersRepository {
     FirestoreFields.cancelledBy: cancelledByUid,
   });
 
+  /// Marca el pedido como pagado (solo admin; reglas Firestore). No se desmarca desde la app.
+  Future<void> markOrderAsPaid({
+    required String orderId,
+    required String adminUid,
+  }) =>
+      _orders.doc(orderId).update({
+        FirestoreFields.isPaid: true,
+        FirestoreFields.paidAt: FieldValue.serverTimestamp(),
+        FirestoreFields.paidBy: adminUid,
+      });
+
   /// Marca un mensaje como leído por el admin y decrementa el contador del pedido.
   Future<void> markMessageReadByAdmin({
     required String messageId,

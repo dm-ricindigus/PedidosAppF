@@ -75,8 +75,13 @@ class OrderItem extends StatelessWidget {
   final bool hideEstadoChip;
   /// Mensajes del cliente sin abrir por el admin (badge en lista).
   final int adminUnreadMessageCount;
+  /// Marca de pago (lista admin).
+  final bool isPaid;
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
+
+  static const Color _paidChipBg = Color(0xFFDDF5E3);
+  static const Color _paidChipFg = Color(0xFF1E6B36);
 
   const OrderItem({
     super.key,
@@ -88,6 +93,7 @@ class OrderItem extends StatelessWidget {
     this.fechaCreado,
     this.hideEstadoChip = false,
     this.adminUnreadMessageCount = 0,
+    this.isPaid = false,
     this.onTap,
     this.onLongPress,
   });
@@ -183,6 +189,38 @@ class OrderItem extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (isPaid)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _paidChipBg,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.paid_rounded,
+                          size: 16,
+                          color: _paidChipFg,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Pagado',
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(
+                                color: _paidChipFg,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
                 if (adminUnreadMessageCount > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(

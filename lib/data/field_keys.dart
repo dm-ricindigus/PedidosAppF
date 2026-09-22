@@ -42,6 +42,11 @@ abstract final class FirestoreFields {
   static const String cancelledAt = 'cancelledAt';
   static const String cancelledBy = 'cancelledBy';
 
+  /// Marca de pago (solo admin). Ausente o `false` = no pagado.
+  static const String isPaid = 'isPaid';
+  static const String paidAt = 'paidAt';
+  static const String paidBy = 'paidBy';
+
   // appConfig/settings (actualización forzada)
   /// Si es `false`, no se aplica bloqueo por versión (override de emergencia).
   static const String forceUpdateEnabled = 'forceUpdateEnabled';

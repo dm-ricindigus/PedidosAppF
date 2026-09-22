@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:pedidosapp/data/field_keys.dart';
 import 'package:pedidosapp/data/repositories/orders_repository.dart';
+import 'package:pedidosapp/features/admin/admin_mark_order_paid_flow.dart';
 import 'package:pedidosapp/features/admin/message_detail_admin.dart';
 import 'package:pedidosapp/features/admin/widgets/order_detail_admin_widgets.dart';
 import 'package:pedidosapp/shared/message_read_utils.dart';
@@ -44,6 +45,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
   String? _cancellationReason;
   Timestamp? _maxDeliveryDate;
   bool _loadingOrder = true;
+  bool _isPaid = false;
 
   String? get _resolvedOrderId {
     final fromState = _orderId?.trim();
@@ -186,6 +188,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
       final clientEmail = emailStr.isNotEmpty ? emailStr : null;
       final cancellationReason =
           (orderData[FirestoreFields.cancellationReason] as String?)?.trim();
+      final isPaid = orderData[FirestoreFields.isPaid] == true;
 
       setState(() {
         _orderId = orderDoc!.id;
@@ -197,6 +200,7 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
             (cancellationReason != null && cancellationReason.isNotEmpty)
             ? cancellationReason
             : null;
+        _isPaid = isPaid;
         _loadingOrder = false;
       });
     } catch (_) {
@@ -378,6 +382,24 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
     );
   }
 
+  void _markOrderAsPaid() {
+    final orderId = _orderId;
+    if (orderId == null || _isPaid) return;
+
+    runAdminMarkOrderAsPaidFlow(
+      context,
+      ordersRepo: _ordersRepo,
+      adminUid: _auth.currentUser?.uid,
+      orderId: orderId,
+      orderDisplayLine: widget.orderDisplayLine,
+      onSuccess: () {
+        if (mounted) {
+          setState(() => _isPaid = true);
+        }
+      },
+    );
+  }
+
   void _showStatePickerSheet() {
     if (!_isStateChangeEnabled) return;
 
@@ -434,6 +456,18 @@ class _OrderDetailAdminPageState extends State<OrderDetailAdminPage> {
           ],
         ),
         actions: [
+          if (!_loadingOrder && _orderId != null && !_isPaid)
+            IconButton(
+              tooltip: 'Marcar como pagado',
+              onPressed: _markOrderAsPaid,
+              icon: const Icon(Icons.paid_outlined),
+            ),
+          if (!_loadingOrder && _orderId != null && _isPaid)
+            IconButton(
+              tooltip: 'Pagado',
+              onPressed: null,
+              icon: const Icon(Icons.paid_rounded),
+            ),
           if (isOrderCancelled(_currentStateCode))
             IconButton(
               tooltip: 'Eliminar pedido',

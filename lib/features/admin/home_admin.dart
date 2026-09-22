@@ -7,6 +7,7 @@ import 'package:pedidosapp/core/email_utils.dart';
 import 'package:pedidosapp/data/field_keys.dart';
 import 'package:pedidosapp/data/repositories/auth_repository.dart';
 import 'package:pedidosapp/data/repositories/orders_repository.dart';
+import 'package:pedidosapp/features/admin/admin_mark_order_paid_flow.dart';
 import 'package:pedidosapp/features/admin/order_detail_admin.dart';
 import 'package:pedidosapp/features/admin/widgets/home_admin_widgets.dart';
 import 'package:pedidosapp/features/auth/login.dart';
@@ -192,6 +193,9 @@ class _HomeAdminPageState extends State<HomeAdminPage>
     required String orderCode,
     required String? prefilledClientEmail,
     bool isPendingUnusedCode = false,
+    String? orderFirestoreId,
+    bool isPaid = false,
+    String? orderDisplayLineForConfirm,
   }) {
     final theme = Theme.of(context);
     final email = prefilledClientEmail?.trim() ?? '';
@@ -266,6 +270,30 @@ class _HomeAdminPageState extends State<HomeAdminPage>
                         }
                       : null,
                 ),
+                if (!isPendingUnusedCode &&
+                    !isPaid &&
+                    orderFirestoreId != null &&
+                    orderFirestoreId.trim().isNotEmpty) ...[
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.paid_rounded,
+                      color: Color(0xFF1E6B36),
+                    ),
+                    title: const Text('Marcar como pagado'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      runAdminMarkOrderAsPaidFlow(
+                        context,
+                        ordersRepo: _ordersRepo,
+                        adminUid: _authRepo.currentUser?.uid,
+                        orderId: orderFirestoreId.trim(),
+                        orderDisplayLine:
+                            orderDisplayLineForConfirm ?? 'Pedido Nº $idTrimmed',
+                      );
+                    },
+                  ),
+                ],
                 if (isPendingUnusedCode && hasOrderId) ...[
                   const Divider(height: 1),
                   ListTile(
@@ -523,6 +551,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
             final String? listClientEmail =
                 _clientEmailForOrderListItem(data, orderCode.trim());
             final unreadCount = adminUnreadMessageCountFromOrder(data);
+            final isPaid = data[FirestoreFields.isPaid] == true;
 
             return OrderItem(
               numeroPedido: orderDisplayLine,
@@ -531,6 +560,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
               clientEmail: listClientEmail,
               fechaMaxEntrega: maxDeliveryDate,
               adminUnreadMessageCount: unreadCount,
+              isPaid: isPaid,
               onTap: () {
                 Navigator.push(
                   context,
@@ -548,6 +578,9 @@ class _HomeAdminPageState extends State<HomeAdminPage>
                 context,
                 orderCode: orderCode.trim(),
                 prefilledClientEmail: listClientEmail,
+                orderFirestoreId: orderDocs[index].id,
+                isPaid: isPaid,
+                orderDisplayLineForConfirm: orderDisplayLine,
               ),
             );
           },
