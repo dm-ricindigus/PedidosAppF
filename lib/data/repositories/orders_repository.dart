@@ -54,12 +54,14 @@ class OrdersRepository {
     String clientId,
   ) => _orders.where(FirestoreFields.clientId, isEqualTo: clientId).snapshots();
 
-  /// Todos los pedidos, más recientes primero (cualquier admin).
-  Stream<QuerySnapshot<Map<String, dynamic>>> watchAllOrdersCreatedAtDesc() =>
-      _orders.orderBy(FirestoreFields.createdAt, descending: true).snapshots();
+  /// Todos los pedidos, más actividad reciente del cliente primero (admin prod).
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchAllOrdersLastActivityDesc() =>
+      _orders
+          .orderBy(FirestoreFields.lastClientMessageAt, descending: true)
+          .snapshots();
 
   /// Pedidos visibles según si el admin es demo o de producción.
-  Stream<QuerySnapshot<Map<String, dynamic>>> watchAdminOrdersCreatedAtDesc({
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchAdminOrdersLastActivityDesc({
     required bool adminIsDemo,
     required String adminId,
   }) {
@@ -67,10 +69,10 @@ class OrdersRepository {
       return _orders
           .where(FirestoreFields.isDemo, isEqualTo: true)
           .where(FirestoreFields.adminId, isEqualTo: adminId)
-          .orderBy(FirestoreFields.createdAt, descending: true)
+          .orderBy(FirestoreFields.lastClientMessageAt, descending: true)
           .snapshots();
     }
-    return watchAllOrdersCreatedAtDesc();
+    return watchAllOrdersLastActivityDesc();
   }
 
   /// Códigos no usados de todos los admins, más recientes primero.

@@ -193,6 +193,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
         FirestoreFields.clientEmail: (user.email ?? '').trim().toLowerCase(),
         FirestoreFields.maxDeliveryDate: Timestamp.fromDate(_fechaMaxEntrega!),
         FirestoreFields.createdAt: FieldValue.serverTimestamp(),
+        FirestoreFields.lastClientMessageAt: FieldValue.serverTimestamp(),
       };
       if (orderCodeAdminUid != null && orderCodeAdminUid.isNotEmpty) {
         orderPayload[FirestoreFields.adminId] = orderCodeAdminUid;

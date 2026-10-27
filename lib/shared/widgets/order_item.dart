@@ -106,6 +106,37 @@ class OrderItem extends StatelessWidget {
     return obtenerEstiloEstado(estado, colorScheme);
   }
 
+  Widget _adminUnreadBadge(BuildContext context, ColorScheme colorScheme) {
+    final countLabel = adminUnreadMessageCount > 99
+        ? '99+'
+        : '$adminUnreadMessageCount';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF3E0),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.mark_email_unread_rounded,
+            size: 16,
+            color: colorScheme.primary,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            countLabel,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _orderItemBody(
     BuildContext context,
     ColorScheme colorScheme,
@@ -113,8 +144,13 @@ class OrderItem extends StatelessWidget {
     Color chipFg,
     IconData chipIcon,
   ) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    final content = Padding(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        adminUnreadMessageCount > 0 ? 52 : 16,
+        16,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -221,43 +257,25 @@ class OrderItem extends StatelessWidget {
                       ],
                     ),
                   ),
-                if (adminUnreadMessageCount > 0)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF3E0),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.mark_email_unread_rounded,
-                          size: 16,
-                          color: colorScheme.primary,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          adminUnreadMessageCount == 1
-                              ? 'Mensaje nuevo'
-                              : '$adminUnreadMessageCount mensajes nuevos',
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             ),
           ],
         ],
       ),
+    );
+
+    if (adminUnreadMessageCount <= 0) return content;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        content,
+        Positioned(
+          top: 8,
+          right: 8,
+          child: _adminUnreadBadge(context, colorScheme),
+        ),
+      ],
     );
   }
 

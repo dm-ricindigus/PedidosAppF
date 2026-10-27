@@ -23,6 +23,9 @@ abstract final class FirestoreFields {
   /// Contador denormalizado en `orders` (mensajes con [readByAdmin] == false).
   static const String adminUnreadMessageCount = 'adminUnreadMessageCount';
 
+  /// Último mensaje del cliente; usado para ordenar listas por actividad reciente.
+  static const String lastClientMessageAt = 'lastClientMessageAt';
+
   static const String used = 'used';
   static const String usedAt = 'usedAt';
   static const String usedBy = 'usedBy';

@@ -62,6 +62,13 @@ String orderListSortLabel(String sortKey) {
       .$2;
 }
 
+/// Última actividad del cliente para ordenar; legacy sin [lastClientMessageAt] → [createdAt].
+Timestamp? orderListActivityTimestamp(Map<String, dynamic> data) {
+  final last = data[FirestoreFields.lastClientMessageAt] as Timestamp?;
+  if (last != null) return last;
+  return data[FirestoreFields.createdAt] as Timestamp?;
+}
+
 List<QueryDocumentSnapshot> orderListSortedDocuments(
   List<QueryDocumentSnapshot> documents,
   String sortKey,
@@ -70,24 +77,24 @@ List<QueryDocumentSnapshot> orderListSortedDocuments(
   sorted.sort((a, b) {
     final aData = a.data() as Map<String, dynamic>? ?? {};
     final bData = b.data() as Map<String, dynamic>? ?? {};
-    final aCreatedAt = aData[FirestoreFields.createdAt] as Timestamp?;
-    final bCreatedAt = bData[FirestoreFields.createdAt] as Timestamp?;
+    final aActivity = orderListActivityTimestamp(aData);
+    final bActivity = orderListActivityTimestamp(bData);
     final aState = aData[FirestoreFields.state] as int? ?? 0;
     final bState = bData[FirestoreFields.state] as int? ?? 0;
 
     switch (sortKey) {
       case 'fecha_asc':
-        if (aCreatedAt == null && bCreatedAt == null) return 0;
-        if (aCreatedAt == null) return 1;
-        if (bCreatedAt == null) return -1;
-        return aCreatedAt.compareTo(bCreatedAt);
+        if (aActivity == null && bActivity == null) return 0;
+        if (aActivity == null) return 1;
+        if (bActivity == null) return -1;
+        return aActivity.compareTo(bActivity);
       case 'estado':
         final stateCmp = aState.compareTo(bState);
         if (stateCmp != 0) return stateCmp;
-        if (aCreatedAt == null && bCreatedAt == null) return 0;
-        if (aCreatedAt == null) return 1;
-        if (bCreatedAt == null) return -1;
-        return bCreatedAt.compareTo(aCreatedAt);
+        if (aActivity == null && bActivity == null) return 0;
+        if (aActivity == null) return 1;
+        if (bActivity == null) return -1;
+        return bActivity.compareTo(aActivity);
       case 'fecha_entrega':
         final aIsDelivered = aState == kOrderStateEntregado;
         final bIsDelivered = bState == kOrderStateEntregado;
@@ -109,10 +116,10 @@ List<QueryDocumentSnapshot> orderListSortedDocuments(
         return aMaxDelivery.compareTo(bMaxDelivery);
       case 'fecha_desc':
       default:
-        if (aCreatedAt == null && bCreatedAt == null) return 0;
-        if (aCreatedAt == null) return 1;
-        if (bCreatedAt == null) return -1;
-        return bCreatedAt.compareTo(aCreatedAt);
+        if (aActivity == null && bActivity == null) return 0;
+        if (aActivity == null) return 1;
+        if (bActivity == null) return -1;
+        return bActivity.compareTo(aActivity);
     }
   });
   return sorted;

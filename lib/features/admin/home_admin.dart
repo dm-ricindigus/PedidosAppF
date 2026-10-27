@@ -467,7 +467,7 @@ class _HomeAdminPageState extends State<HomeAdminPage>
       return const Center(child: CircularProgressIndicator());
     }
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _ordersRepo.watchAdminOrdersCreatedAtDesc(
+      stream: _ordersRepo.watchAdminOrdersLastActivityDesc(
         adminIsDemo: _adminIsDemo,
         adminId: _adminUid!,
       ),

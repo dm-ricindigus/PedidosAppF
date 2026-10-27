@@ -474,8 +474,9 @@ exports.onOrderCreatedNotifyAdmin = onDocumentCreated(
   },
 );
 
-// Cliente envía un mensaje nuevo al editar el pedido: notificar al admin del código.
-// Se omite el primer mensaje del pedido (el flujo de creación ya dispara onOrderCreatedNotifyAdmin).
+// Cliente crea un mensaje (pedido nuevo o edición): actualiza lastClientMessageAt en
+// el pedido, incrementa no leídos y (salvo el primer mensaje) notifica al admin.
+// Se omite el push del primer mensaje (onOrderCreatedNotifyAdmin ya notifica creación).
 exports.onClientMessageNotifyAdmin = onDocumentCreated(
   'messages/{messageId}',
   async (event) => {
@@ -517,6 +518,7 @@ exports.onClientMessageNotifyAdmin = onDocumentCreated(
 
     await orderRef.update({
       adminUnreadMessageCount: admin.firestore.FieldValue.increment(1),
+      lastClientMessageAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     const countSnap = await db
