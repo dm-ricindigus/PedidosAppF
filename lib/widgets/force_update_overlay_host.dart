@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pedidosapp/services/crash_reporting_service.dart';
 import 'package:pedidosapp/services/force_update_service.dart';
 import 'package:pedidosapp/widgets/force_update_screen.dart';
 
@@ -36,6 +37,7 @@ class _ForceUpdateOverlayHostState extends State<ForceUpdateOverlayHost>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ForceUpdateService.instance.revalidate();
+      CrashReportingService.flushPendingReports();
     }
   }
 

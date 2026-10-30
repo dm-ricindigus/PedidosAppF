@@ -243,6 +243,7 @@
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				55CDB660B69AE5E2B435B1F9 /* [CP] Embed Pods Frameworks */,
 				39417AEBDF61AD4E8975E7B3 /* [CP] Copy Pods Resources */,
+				F1A2B3C41D2E3F4A5B6C7D8E /* [firebase_crashlytics] Crashlytics Run Script */,
 			);
 			buildRules = (
 			);
@@ -437,6 +438,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "set -e\ncase \"${CONFIGURATION}\" in\n  *-dev)\n    cp \"${SRCROOT}/Runner/Firebase/dev/GoogleService-Info.plist\" \"${SRCROOT}/Runner/GoogleService-Info.plist\"\n    ;;\n  *-prod)\n    cp \"${SRCROOT}/Runner/Firebase/prod/GoogleService-Info.plist\" \"${SRCROOT}/Runner/GoogleService-Info.plist\"\n    ;;\n  *)\n    echo \"error: Unknown configuration ${CONFIGURATION}\"\n    exit 1\n    ;;\nesac\n";
+			showEnvVarsInLog = 0;
+		};
+		F1A2B3C41D2E3F4A5B6C7D8E /* [firebase_crashlytics] Crashlytics Run Script */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${TARGET_NAME}",
+				"$(SRCROOT)/Runner/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)",
+			);
+			name = "[firebase_crashlytics] Crashlytics Run Script";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/FirebaseCrashlytics/run\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

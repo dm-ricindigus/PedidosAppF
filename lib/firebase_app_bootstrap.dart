@@ -21,9 +21,14 @@ Future<void> initializeFirebaseApp(FirebaseOptions options) async {
   await ensureFirebaseInitialized(options);
   await AnalyticsService.configureCollection();
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(!kDebugMode);
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-  PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
+
+  if (kDebugMode) {
+    FlutterError.onError = FlutterError.presentError;
+  } else {
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  }
 }
